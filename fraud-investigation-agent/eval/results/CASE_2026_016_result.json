@@ -38,7 +38,7 @@
     "subgraph_path": "ACC_890193 --[USED_DEVICE]--> DEV_8237 | ACC_890193 --[USED_IP]--> 42.92.209.133"
   },
   "sar_filing_required": true,
-  "sar_draft": "\nSUSPICIOUS ACTIVITY REPORT (SAR)\nFinCEN Form 111 \u2014 Automated Draft\n\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\n\nPART I \u2014 FILING INSTITUTION INFORMATION\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nFiling Institution:  HHGOA National Bank (Demo)\nLEI:                 [LEI-PLACEHOLDER]\nContact Name:        Fraud Investigation System (AI-Generated Draft)\nContact Phone:       +1-800-FRAUD-00\nFiling Date:         2026-09-20\nSAR Reference ID:    SAR-576D0C7FAA\n\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\n\nPART II \u2014 SUBJECT INFORMATION\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nSubject Account ID:  ACC_890193\nCase Reference:      CASE_2026_016\nActivity Period:     2026-09-20 to 2026-09-20\nSuspicious Amount:   $83,907.62 USD\n\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\n\nPART III \u2014 SUSPICIOUS ACTIVITY INFORMATION\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nFraud Typology:       SMURFING_VELOCITY\nRisk Score:           1.00 / 1.00\nFraud Probability:    100%\nUncertainty Score:    30%\n\nActivity Category:    Structuring / Money Laundering\nSuspicious Indicators:\n\u2022 Velocity burst score 19.6 \u2014 anomalous transaction rate\n\u2022 Conflicting signal: IP is domestic and not proxied (reduces suspicion)\n\u2022 Conflicting signal: High risk but no proxy \u2014 uncertainty raised\n\u2022 Conflicting signal: No device sharing \u2014 key signal absent\n\u2022 Supporting evidence: Extreme velocity burst score 19.6 (+0.15)\n\u2022 Supporting evidence: Customer response: TRANSACTION_UNRECOGNIZED\n\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\n\nPART IV \u2014 GRAPH EVIDENCE SUMMARY\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nShared Device Accounts:   0\nShared IP Accounts:       0\nIP Proxy Detected:        NO\nNew Device Detected:      NO\nVelocity Burst Score:     19.63\nFraud Ring Size:          0\nSubgraph Path:            ACC_890193 --[USED_DEVICE]--> DEV_8237 | ACC_890193 --[USED_IP]--> 42.92.209.133\n\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\n\nPART V \u2014 NARRATIVE\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nOn 2026-09-20, account ACC_890193 was flagged for suspicious activity\nconsistent with SMURFING_VELOCITY fraud pattern. The automated Fraud Investigation Agent (HHGOA System)\ninitiated Case CASE_2026_016 following a trigger event with an initial risk score of\n1.00 and uncertainty score of 0.30.\n\nGraph analysis revealed the following structural anomalies:\nACC_890193 --[USED_DEVICE]--> DEV_8237 | ACC_890193 --[USED_IP]--> 42.92.209.133\n\nPrior to requesting additional evidence, the agent recommended: STEP_UP_AUTH.\n\nAdditional evidence was gathered via customer outreach. The customer response was: 'TRANSACTION_UNRECOGNIZED'.\n\nFollowing evidence synthesis, the agent determined a final fraud probability of 1.00\n(100%) and recommended action: FILE_SAR.\n\nKey risk factors included: Extreme velocity burst score 19.6 (+0.15); Customer response: TRANSACTION_UNRECOGNIZED.\n\nThe total suspicious amount involved was $83,907.62 USD.\n\nThis SAR is filed in compliance with 31 U.S.C. \u00a7 5318(g) and requires Compliance Officer review\nprior to submission to FinCEN within the mandatory 30-day window.\n\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\n\nPART VI \u2014 LAW ENFORCEMENT CONTACT\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nIf this SAR relates to an ongoing criminal investigation, please\ncontact the relevant law enforcement agency with this reference:\nSAR-REF: SAR-576D0C7FAA\n\nNOTE: This SAR was auto-generated by the HHGOA Fraud Investigation\nAgent and requires review and sign-off by a Compliance Officer\nbefore submission to FinCEN.\n\nREQUIRED APPROVAL: COMPLIANCE_OFFICER\nFILING DEADLINE:   Within 30 days of detection (2026-09-20)\nREGULATORY BASIS:  31 U.S.C. \u00a7 5318(g) | 31 CFR \u00a7 1020.320\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\n",
+  "sar_draft": "\nSUSPICIOUS ACTIVITY REPORT (SAR)\nFinCEN Form 111 \u2014 Automated Draft\n\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\n\nPART I \u2014 FILING INSTITUTION INFORMATION\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nFiling Institution:  HHGOA National Bank (Demo)\nLEI:                 [LEI-PLACEHOLDER]\nContact Name:        Fraud Investigation System (AI-Generated Draft)\nContact Phone:       +1-800-FRAUD-00\nFiling Date:         2026-09-21\nSAR Reference ID:    SAR-77675789F6\n\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\n\nPART II \u2014 SUBJECT INFORMATION\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nSubject Account ID:  ACC_890193\nCase Reference:      CASE_2026_016\nActivity Period:     2026-09-21 to 2026-09-21\nSuspicious Amount:   $83,907.62 USD\n\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\n\nPART III \u2014 SUSPICIOUS ACTIVITY INFORMATION\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nFraud Typology:       SMURFING_VELOCITY\nRisk Score:           1.00 / 1.00\nFraud Probability:    100%\nUncertainty Score:    30%\n\nActivity Category:    Structuring / Money Laundering\nSuspicious Indicators:\n\u2022 Velocity burst score 19.6 \u2014 anomalous transaction rate\n\u2022 Conflicting signal: IP is domestic and not proxied (reduces suspicion)\n\u2022 Conflicting signal: High risk but no proxy \u2014 uncertainty raised\n\u2022 Conflicting signal: No device sharing \u2014 key signal absent\n\u2022 Supporting evidence: Extreme velocity burst score 19.6 (+0.15)\n\u2022 Supporting evidence: Customer response: TRANSACTION_UNRECOGNIZED\n\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\n\nPART IV \u2014 GRAPH EVIDENCE SUMMARY\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nShared Device Accounts:   0\nShared IP Accounts:       0\nIP Proxy Detected:        NO\nNew Device Detected:      NO\nVelocity Burst Score:     19.63\nFraud Ring Size:          0\nSubgraph Path:            ACC_890193 --[USED_DEVICE]--> DEV_8237 | ACC_890193 --[USED_IP]--> 42.92.209.133\n\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\n\nPART V \u2014 NARRATIVE\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nOn 2026-09-21, account ACC_890193 was flagged for suspicious activity\nconsistent with SMURFING_VELOCITY fraud pattern. The automated Fraud Investigation Agent (HHGOA System)\ninitiated Case CASE_2026_016 following a trigger event with an initial risk score of\n1.00 and uncertainty score of 0.30.\n\nGraph analysis revealed the following structural anomalies:\nACC_890193 --[USED_DEVICE]--> DEV_8237 | ACC_890193 --[USED_IP]--> 42.92.209.133\n\nPrior to requesting additional evidence, the agent recommended: STEP_UP_AUTH.\n\nAdditional evidence was gathered via customer outreach. The customer response was: 'TRANSACTION_UNRECOGNIZED'.\n\nFollowing evidence synthesis, the agent determined a final fraud probability of 1.00\n(100%) and recommended action: FILE_SAR.\n\nKey risk factors included: Extreme velocity burst score 19.6 (+0.15); Customer response: TRANSACTION_UNRECOGNIZED.\n\nThe total suspicious amount involved was $83,907.62 USD.\n\nThis SAR is filed in compliance with 31 U.S.C. \u00a7 5318(g) and requires Compliance Officer review\nprior to submission to FinCEN within the mandatory 30-day window.\n\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\n\nPART VI \u2014 LAW ENFORCEMENT CONTACT\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nIf this SAR relates to an ongoing criminal investigation, please\ncontact the relevant law enforcement agency with this reference:\nSAR-REF: SAR-77675789F6\n\nNOTE: This SAR was auto-generated by the HHGOA Fraud Investigation\nAgent and requires review and sign-off by a Compliance Officer\nbefore submission to FinCEN.\n\nREQUIRED APPROVAL: COMPLIANCE_OFFICER\nFILING DEADLINE:   Within 30 days of detection (2026-09-21)\nREGULATORY BASIS:  31 U.S.C. \u00a7 5318(g) | 31 CFR \u00a7 1020.320\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\n",
   "case_status": "CLOSED",
   "audit_trail": [
     {
@@ -46,69 +46,69 @@
       "actor": "AGENT",
       "event": "CASE_OPENED",
       "detail": "Trigger: VELOCITY_SPIKE, initial_risk=0.83, amount=$83,907.62",
-      "timestamp": "2026-09-20T19:03:37.871461"
+      "timestamp": "2026-09-21T17:18:33.477675"
     },
     {
       "stage": "INVESTIGATE",
       "actor": "AGENT",
       "event": "SUBGRAPH_EXTRACTED",
       "detail": "Nodes=3, Edges=2, SharedDeviceAccs=0, RingSize=0, ProxyIP=False",
-      "timestamp": "2026-09-20T19:03:37.872368"
+      "timestamp": "2026-09-21T17:18:33.479243"
     },
     {
       "stage": "GATHER_EVIDENCE",
       "actor": "AGENT",
       "event": "RAG_COMPLETE",
       "detail": "Retrieved 5 similar cases. Policy context built.",
-      "timestamp": "2026-09-20T19:03:38.368462"
+      "timestamp": "2026-09-21T17:18:33.802402"
     },
     {
       "stage": "ASSESS_RISK",
       "actor": "AGENT",
       "event": "RISK_ASSESSED",
       "detail": "fraud_probability=0.95, uncertainty=0.60, typology=SMURFING_VELOCITY",
-      "timestamp": "2026-09-20T19:03:38.370130"
+      "timestamp": "2026-09-21T17:18:33.803944"
     },
     {
       "stage": "PRE_NBA",
       "actor": "AGENT",
       "event": "PRE_EVIDENCE_ACTION_SELECTED",
       "detail": "action=STEP_UP_AUTH, approval=AUTOMATED_POLICY, confidence=0.95",
-      "timestamp": "2026-09-20T19:03:38.370976"
+      "timestamp": "2026-09-21T17:18:33.804907"
     },
     {
       "stage": "EXTRA_EVIDENCE",
       "actor": "AGENT",
       "event": "ADDITIONAL_EVIDENCE_GATHERED",
       "detail": "action=CUSTOMER_OUTREACH_SMS, response=TRANSACTION_UNRECOGNIZED, risk_delta=+0.15, unc_delta=-0.30, new_fp=1.00, new_unc=0.30",
-      "timestamp": "2026-09-20T19:03:38.777572"
+      "timestamp": "2026-09-21T17:18:34.211910"
     },
     {
       "stage": "POST_NBA",
       "actor": "AGENT",
       "event": "POST_EVIDENCE_ACTION_SELECTED",
       "detail": "action=FILE_SAR, approval=COMPLIANCE_OFFICER, confidence=1.00, sar_required=True",
-      "timestamp": "2026-09-20T19:03:38.780067"
+      "timestamp": "2026-09-21T17:18:34.214275"
     },
     {
       "stage": "SAR_EXPLAIN",
       "actor": "AGENT",
       "event": "CASE_SUMMARY_GENERATED",
       "detail": "sar_generated=True, summary_length=1037 chars",
-      "timestamp": "2026-09-20T19:03:38.781423"
+      "timestamp": "2026-09-21T17:18:34.215431"
     },
     {
       "stage": "UPDATE_MEMORY",
       "actor": "AGENT",
       "event": "CASE_CLOSED",
       "detail": "Persisted to TigerGraph + ChromaDB. Final status: CLOSED",
-      "timestamp": "2026-09-20T19:03:39.291759"
+      "timestamp": "2026-09-21T17:18:34.674462"
     }
   ],
   "_benchmark": {
     "case_file": "CASE_2026_016",
     "typology": "SMURFING_VELOCITY",
-    "elapsed_ms": 1461,
+    "elapsed_ms": 1219,
     "expected": {
       "fraud_typology": "SMURFING_VELOCITY",
       "pre_evidence_action": "ADD_TO_WATCHLIST",
@@ -116,7 +116,7 @@
       "sar_required": true,
       "approval_tier": "COMPLIANCE_OFFICER"
     },
-    "run_ts": "2026-09-20T19:03:39.292517"
+    "run_ts": "2026-09-21T17:18:34.675453"
   },
   "_score": {
     "typology_match": true,

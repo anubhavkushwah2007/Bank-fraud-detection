@@ -434,7 +434,7 @@ elif page == "🔍 Investigate":
                         "unique_ip_count": 2, "velocity_burst_score": 8.5 if ip_proxy else 2.0}
             def _patched_rings():
                 return {"components": [], "total_components": 0, "largest_ring_size": 0}
-            def _patched_subgraph(a, h=2):
+            def _patched_subgraph(a, hop=2):
                 nodes = [{"node_id": account_id, "node_type": "Account", "attributes": {"risk_score_current": initial_risk}},
                          {"node_id": "DEV_NEW_001", "node_type": "Device", "attributes": {"risk_score": 0.9 if new_device else 0.1, "is_emulator": False}},
                          {"node_id": "IP_PROXY_001", "node_type": "IP_Address", "attributes": {"country": "RU", "is_proxy": ip_proxy}}]
