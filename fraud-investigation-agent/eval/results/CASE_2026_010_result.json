@@ -1,0 +1,120 @@
+{
+  "case_id": "CASE_2026_010",
+  "initial_trigger": {
+    "case_id": "CASE_2026_010",
+    "account_id": "ACC_826069",
+    "transaction_id": "TXN_8775634",
+    "trigger_type": "HIGH_RISK_SCORE",
+    "initial_risk": 0.9144,
+    "amount": 9127.42,
+    "timestamp": "2026-06-10T02:36:00Z",
+    "metadata": {}
+  },
+  "pre_evidence_recommendation": {
+    "action": "STEP_UP_AUTH",
+    "approval_required": "AUTOMATED_POLICY",
+    "confidence": 1.0,
+    "justification": "Proxy IP + new device detected \u2014 step-up MFA required before proceeding."
+  },
+  "additional_evidence_gathered": {
+    "action_taken": "",
+    "response_received": "",
+    "response_status": ""
+  },
+  "post_evidence_recommendation": {
+    "action": "FREEZE_ACCOUNT",
+    "approval_required": "TIER_2_ANALYST",
+    "confidence": 1.0,
+    "fraud_typology": "ACCOUNT_TAKEOVER",
+    "justification": "ACCOUNT_TAKEOVER detected with 100% fraud probability. Evidence: . Shared devices: 6."
+  },
+  "graph_evidence": {
+    "shared_device_accounts_count": 6,
+    "shared_ip_accounts_count": 3,
+    "ip_proxy_detected": true,
+    "new_device_detected": true,
+    "velocity_burst_score": 16.17,
+    "ring_size": 7,
+    "subgraph_path": "ACC_826069 --[USED_DEVICE]--> DEV_4594 | ACC_826069 --[USED_IP]--> 197.107.183.134"
+  },
+  "sar_filing_required": true,
+  "sar_draft": "\nSUSPICIOUS ACTIVITY REPORT (SAR)\nFinCEN Form 111 \u2014 Automated Draft\n\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\n\nPART I \u2014 FILING INSTITUTION INFORMATION\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nFiling Institution:  HHGOA National Bank (Demo)\nLEI:                 [LEI-PLACEHOLDER]\nContact Name:        Fraud Investigation System (AI-Generated Draft)\nContact Phone:       +1-800-FRAUD-00\nFiling Date:         2026-09-20\nSAR Reference ID:    SAR-1BC40A0F7E\n\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\n\nPART II \u2014 SUBJECT INFORMATION\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nSubject Account ID:  ACC_826069\nCase Reference:      CASE_2026_010\nActivity Period:     2026-09-20 to 2026-09-20\nSuspicious Amount:   $9,127.42 USD\n\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\n\nPART III \u2014 SUSPICIOUS ACTIVITY INFORMATION\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nFraud Typology:       ACCOUNT_TAKEOVER\nRisk Score:           1.00 / 1.00\nFraud Probability:    100%\nUncertainty Score:    30%\n\nActivity Category:    Account Takeover / Unauthorized Access\nSuspicious Indicators:\n\u2022 IP address identified as proxy/VPN \u2014 obfuscated geographic origin\n\u2022 Transaction initiated from device not previously associated with account\n\u2022 Device shared across 6 unrelated accounts (IDs: ACC_665141, ACC_906290, ACC_111946, ACC_200236, ACC_263396)\n\u2022 IP address shared across 3 accounts\n\u2022 Velocity burst score 16.2 \u2014 anomalous transaction rate\n\u2022 Fraud ring detected: 7 accounts sharing credentials (component: COMP_0)\n\u2022 Supporting evidence: Device shared across 6 accounts (+0.15)\n\u2022 Supporting evidence: Proxy/VPN IP detected (+0.12)\n\u2022 Supporting evidence: New device not previously seen (+0.10)\n\u2022 Supporting evidence: Extreme velocity burst score 16.2 (+0.15)\n\u2022 Supporting evidence: Part of fraud ring with 7 members (+0.20)\n\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\n\nPART IV \u2014 GRAPH EVIDENCE SUMMARY\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nShared Device Accounts:   6\nShared IP Accounts:       3\nIP Proxy Detected:        YES\nNew Device Detected:      YES\nVelocity Burst Score:     16.17\nFraud Ring Size:          7\nSubgraph Path:            ACC_826069 --[USED_DEVICE]--> DEV_4594 | ACC_826069 --[USED_IP]--> 197.107.183.134\n\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\n\nPART V \u2014 NARRATIVE\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nOn 2026-09-20, account ACC_826069 was flagged for suspicious activity\nconsistent with ACCOUNT_TAKEOVER fraud pattern. The automated Fraud Investigation Agent (HHGOA System)\ninitiated Case CASE_2026_010 following a trigger event with an initial risk score of\n1.00 and uncertainty score of 0.30.\n\nGraph analysis revealed the following structural anomalies:\nACC_826069 --[USED_DEVICE]--> DEV_4594 | ACC_826069 --[USED_IP]--> 197.107.183.134\n\nPrior to requesting additional evidence, the agent recommended: STEP_UP_AUTH.\n\nAdditional evidence was gathered via customer outreach. The customer response was: 'N/A'.\n\nFollowing evidence synthesis, the agent determined a final fraud probability of 1.00\n(100%) and recommended action: FREEZE_ACCOUNT.\n\nKey risk factors included: Device shared across 6 accounts (+0.15); Proxy/VPN IP detected (+0.12); New device not previously seen (+0.10).\n\nThe total suspicious amount involved was $9,127.42 USD.\n\nThis SAR is filed in compliance with 31 U.S.C. \u00a7 5318(g) and requires Compliance Officer review\nprior to submission to FinCEN within the mandatory 30-day window.\n\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\n\nPART VI \u2014 LAW ENFORCEMENT CONTACT\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nIf this SAR relates to an ongoing criminal investigation, please\ncontact the relevant law enforcement agency with this reference:\nSAR-REF: SAR-1BC40A0F7E\n\nNOTE: This SAR was auto-generated by the HHGOA Fraud Investigation\nAgent and requires review and sign-off by a Compliance Officer\nbefore submission to FinCEN.\n\nREQUIRED APPROVAL: COMPLIANCE_OFFICER\nFILING DEADLINE:   Within 30 days of detection (2026-09-20)\nREGULATORY BASIS:  31 U.S.C. \u00a7 5318(g) | 31 CFR \u00a7 1020.320\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\n",
+  "case_status": "CLOSED",
+  "audit_trail": [
+    {
+      "stage": "TRIGGER",
+      "actor": "AGENT",
+      "event": "CASE_OPENED",
+      "detail": "Trigger: HIGH_RISK_SCORE, initial_risk=0.91, amount=$9,127.42",
+      "timestamp": "2026-09-20T19:03:30.602680"
+    },
+    {
+      "stage": "INVESTIGATE",
+      "actor": "AGENT",
+      "event": "SUBGRAPH_EXTRACTED",
+      "detail": "Nodes=3, Edges=2, SharedDeviceAccs=6, RingSize=7, ProxyIP=True",
+      "timestamp": "2026-09-20T19:03:30.603542"
+    },
+    {
+      "stage": "GATHER_EVIDENCE",
+      "actor": "AGENT",
+      "event": "RAG_COMPLETE",
+      "detail": "Retrieved 5 similar cases. Policy context built.",
+      "timestamp": "2026-09-20T19:03:30.940217"
+    },
+    {
+      "stage": "ASSESS_RISK",
+      "actor": "AGENT",
+      "event": "RISK_ASSESSED",
+      "detail": "fraud_probability=1.00, uncertainty=0.30, typology=ACCOUNT_TAKEOVER",
+      "timestamp": "2026-09-20T19:03:30.941620"
+    },
+    {
+      "stage": "PRE_NBA",
+      "actor": "AGENT",
+      "event": "PRE_EVIDENCE_ACTION_SELECTED",
+      "detail": "action=STEP_UP_AUTH, approval=AUTOMATED_POLICY, confidence=1.00",
+      "timestamp": "2026-09-20T19:03:30.942335"
+    },
+    {
+      "stage": "POST_NBA",
+      "actor": "AGENT",
+      "event": "POST_EVIDENCE_ACTION_SELECTED",
+      "detail": "action=FREEZE_ACCOUNT, approval=TIER_2_ANALYST, confidence=1.00, sar_required=True",
+      "timestamp": "2026-09-20T19:03:30.943386"
+    },
+    {
+      "stage": "SAR_EXPLAIN",
+      "actor": "AGENT",
+      "event": "CASE_SUMMARY_GENERATED",
+      "detail": "sar_generated=True, summary_length=975 chars",
+      "timestamp": "2026-09-20T19:03:30.944755"
+    },
+    {
+      "stage": "UPDATE_MEMORY",
+      "actor": "AGENT",
+      "event": "CASE_CLOSED",
+      "detail": "Persisted to TigerGraph + ChromaDB. Final status: CLOSED",
+      "timestamp": "2026-09-20T19:03:31.403208"
+    }
+  ],
+  "_benchmark": {
+    "case_file": "CASE_2026_010",
+    "typology": "SYNTHETIC_IDENTITY",
+    "elapsed_ms": 832,
+    "expected": {
+      "fraud_typology": "SYNTHETIC_IDENTITY",
+      "pre_evidence_action": "STEP_UP_AUTH",
+      "post_evidence_action": "FILE_SAR",
+      "sar_required": true,
+      "approval_tier": "COMPLIANCE_OFFICER"
+    },
+    "run_ts": "2026-09-20T19:03:31.403944"
+  },
+  "_score": {
+    "typology_match": false,
+    "sar_match": true,
+    "action_match": false
+  },
+  "_pass_rate": "1/3"
+}

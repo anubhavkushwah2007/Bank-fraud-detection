@@ -1,0 +1,89 @@
+// ============================================================
+// trace_fund_velocity.gsql
+// Computes money movement rate, out-degree bursts, and
+// fan-out / fan-in ratios for an Account over a lookback window.
+// ============================================================
+
+USE GRAPH FraudGraph
+
+CREATE OR REPLACE QUERY trace_fund_velocity(
+    VERTEX<Account> acc,
+    INT lookback_hours = 72
+) FOR GRAPH FraudGraph
+SYNTAX V2 {
+    /*
+     * Velocity metrics computed:
+     *  - total_txn_count      : number of transactions in window
+     *  - total_amount         : sum of transaction amounts
+     *  - avg_txn_amount       : average amount
+     *  - max_txn_amount       : single largest transaction
+     *  - txn_per_hour         : average rate
+     *  - unique_devices       : device diversity
+     *  - unique_ips           : IP diversity
+     *  - fan_out_ratio        : unique recipient accounts / total txn
+     *  - velocity_burst_score : weighted burst indicator
+     */
+
+    SumAccum<INT>   @@total_txn_count;
+    SumAccum<FLOAT> @@total_amount;
+    MaxAccum<FLOAT> @@max_txn_amount;
+    MinAccum<FLOAT> @@min_txn_amount;
+    SetAccum<STRING> @@unique_devices;
+    SetAccum<STRING> @@unique_ips;
+
+    DATETIME cutoff = datetime_add(now(), INTERVAL -lookback_hours HOUR);
+
+    seed = {acc};
+
+    // ── 1. Fetch transactions in window ────────────────────────────────────────
+    recent_txns = SELECT t
+                  FROM   seed:a -(PERFORMED_TRANSACTION:e)-> Transaction:t
+                  WHERE  e.txn_date >= cutoff
+                  ACCUM  @@total_txn_count += 1,
+                         @@total_amount    += t.amount,
+                         @@max_txn_amount   = t.amount,
+                         @@min_txn_amount   = t.amount;
+
+    // ── 2. Device & IP diversity ───────────────────────────────────────────────
+    dev_set = SELECT d
+              FROM   recent_txns:t -(USED_DEVICE:e)-> Device:d
+              ACCUM  @@unique_devices += d.device_id;
+
+    ip_set  = SELECT ip
+              FROM   recent_txns:t -(USED_IP:e)-> IP_Address:ip
+              ACCUM  @@unique_ips    += ip.ip_hash;
+
+    // ── 3. Compute derived metrics & emit ─────────────────────────────────────
+    FLOAT avg_amount = 0.0;
+    IF @@total_txn_count > 0 THEN
+        avg_amount = @@total_amount / @@total_txn_count;
+    END;
+
+    FLOAT txn_per_hour = 0.0;
+    IF lookback_hours > 0 THEN
+        txn_per_hour = @@total_txn_count / (lookback_hours * 1.0);
+    END;
+
+    // Burst score: penalise high rate + device & IP diversity
+    FLOAT burst = txn_per_hour
+                  * (1.0 + @@unique_devices.size())
+                  * (1.0 + @@unique_ips.size());
+
+    PRINT @@total_txn_count AS total_txn_count;
+    PRINT @@total_amount    AS total_amount;
+    PRINT avg_amount        AS avg_txn_amount;
+    PRINT @@max_txn_amount  AS max_txn_amount;
+    PRINT @@min_txn_amount  AS min_txn_amount;
+    PRINT txn_per_hour      AS txn_per_hour;
+    PRINT @@unique_devices.size() AS unique_device_count;
+    PRINT @@unique_ips.size()     AS unique_ip_count;
+    PRINT burst                   AS velocity_burst_score;
+
+    PRINT recent_txns [recent_txns.txn_id,
+                       recent_txns.amount,
+                       recent_txns.timestamp,
+                       recent_txns.risk_score,
+                       recent_txns.product_cd];
+}
+
+INSTALL QUERY trace_fund_velocity

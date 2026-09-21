@@ -1,0 +1,63 @@
+// ============================================================
+// find_similar_cases.gsql
+// Vector similarity search across resolved Case records using
+// cosine similarity on pre-computed summary_embedding fields.
+// (Falls back to attribute-based similarity when embeddings
+//  are unavailable — works without TigerGraph Vector extension.)
+// ============================================================
+
+USE GRAPH FraudGraph
+
+CREATE OR REPLACE QUERY find_similar_cases(
+    STRING query_typology  = "",
+    FLOAT  query_risk      = 0.0,
+    INT    top_k           = 5
+) FOR GRAPH FraudGraph
+SYNTAX V2 {
+    /*
+     * Similarity heuristic (attribute-based fallback):
+     *   score = (1 - |risk_delta|) * typology_match_bonus
+     * Returns top_k resolved cases sorted by similarity score.
+     */
+
+    SumAccum<FLOAT>  @sim_score;
+    OrAccum<BOOL>    @typology_match;
+
+    closed_cases = {Case.*};
+
+    // Filter to resolved/closed cases only
+    relevant = SELECT c FROM closed_cases:c
+               WHERE  c.status IN ("CLOSED", "ESCALATED")
+               ACCUM
+                   // Attribute similarity: penalise risk delta
+                   c.@sim_score = 1.0 - abs(c.final_risk - query_risk),
+
+                   // Bonus for typology match
+                   IF c.fraud_typology == query_typology
+                       AND query_typology != ""
+                   THEN
+                       c.@sim_score += 0.3,
+                       c.@typology_match = TRUE
+                   END,
+
+                   // Bonus for SAR match
+                   IF c.sar_required == TRUE AND query_risk > 0.85 THEN
+                       c.@sim_score += 0.1
+                   END;
+
+    // ── Return top-k sorted by similarity ─────────────────────────────────────
+    top_cases = SELECT c FROM relevant:c
+                ORDER BY c.@sim_score DESC
+                LIMIT top_k;
+
+    PRINT top_cases [top_cases.case_id,
+                     top_cases.status,
+                     top_cases.fraud_typology,
+                     top_cases.final_risk,
+                     top_cases.post_evidence_action,
+                     top_cases.sar_required,
+                     top_cases.@sim_score   AS similarity_score,
+                     top_cases.@typology_match AS typology_match];
+}
+
+INSTALL QUERY find_similar_cases

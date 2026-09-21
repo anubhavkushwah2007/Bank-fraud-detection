@@ -1,0 +1,187 @@
+{
+  "version": "2.1.0",
+  "effective_date": "2026-01-01",
+  "regulatory_framework": ["BSA/AML", "FinCEN SAR", "FFIEC Guidance", "PCI-DSS v4"],
+
+  "risk_thresholds": {
+    "fraud_alert":        0.65,
+    "fraud_block":        0.75,
+    "sar_mandatory":      0.85,
+    "uncertainty_review": 0.40,
+    "velocity_spike":     3.0,
+    "max_daily_amount":   50000,
+    "max_txn_per_hour":   20
+  },
+
+  "fraud_typologies": {
+    "CARD_NOT_PRESENT_RING": {
+      "id": "TYP-001",
+      "name": "Card-Not-Present (CNP) Fraud Ring",
+      "description": "Organized rings testing stolen card credentials via low-value probing transactions before high-value purchases. Characterised by multiple accounts sharing device fingerprints, rapid cross-merchant testing, and geographic impossibilities.",
+      "key_signals": [
+        "multiple_accounts_same_device",
+        "rapid_cross_merchant_testing",
+        "card_not_present_channel",
+        "geographic_velocity_anomaly",
+        "foreign_ip_proxy"
+      ],
+      "graph_pattern": "Account -> Device <- Account (shared device with >3 accounts within 7 days)",
+      "regulatory_ref": "FinCEN FIN-2012-A010",
+      "recommended_action": "BLOCK_TRANSACTION",
+      "sar_required": true,
+      "approval_tier": "TIER_2_ANALYST"
+    },
+    "ACCOUNT_TAKEOVER": {
+      "id": "TYP-002",
+      "name": "Account Takeover (ATO)",
+      "description": "Fraudster gains unauthorized access to a legitimate customer account via credential stuffing, phishing, or SIM swap. Signature: sudden device/IP change, password reset, address update followed by large transaction.",
+      "key_signals": [
+        "new_device_first_transaction",
+        "ip_country_mismatch",
+        "recent_credential_change",
+        "unusual_transaction_amount",
+        "step_up_auth_failed"
+      ],
+      "graph_pattern": "Account -> NewDevice (device never seen before) AND IP_Address (foreign country)",
+      "regulatory_ref": "FFIEC IT Exam Handbook 2023",
+      "recommended_action": "FREEZE_ACCOUNT",
+      "sar_required": true,
+      "approval_tier": "TIER_2_ANALYST"
+    },
+    "BUST_OUT": {
+      "id": "TYP-003",
+      "name": "Bust-Out Fraud",
+      "description": "Fraudster builds credit history on synthetic or real identity, maxes out credit lines, then disappears. Characterised by sudden maximum utilization, no prior high-value transactions, address changes, and shared identities across multiple busted accounts.",
+      "key_signals": [
+        "sudden_credit_limit_usage",
+        "multiple_accounts_same_email_domain",
+        "address_change_prior_30_days",
+        "account_age_less_than_6_months",
+        "no_payment_history"
+      ],
+      "graph_pattern": "Account (young) -> high_value_transactions BURST within 48h AND Account -> Email_Domain <- Account (shared domain)",
+      "regulatory_ref": "FinCEN Advisory FIN-2015-A001",
+      "recommended_action": "ACCOUNT_HOLD",
+      "sar_required": true,
+      "approval_tier": "TIER_2_ANALYST"
+    },
+    "SYNTHETIC_IDENTITY": {
+      "id": "TYP-004",
+      "name": "Synthetic Identity Fraud",
+      "description": "Fraudster creates a fictitious identity by combining real PII fragments (valid SSN + fake name/DOB). Multiple synthetic identities often share device hardware or IP, connected through a hidden orchestrator.",
+      "key_signals": [
+        "ssn_dob_mismatch",
+        "shared_device_across_unrelated_accounts",
+        "no_prior_credit_history",
+        "thin_file_pattern",
+        "wcc_component_with_shared_hardware"
+      ],
+      "graph_pattern": "WCC component: >5 Accounts sharing Device AND IP_Address with no social connections",
+      "regulatory_ref": "FTC IdentityTheft.gov Guidance 2022",
+      "recommended_action": "FILE_SAR",
+      "sar_required": true,
+      "approval_tier": "COMPLIANCE_OFFICER"
+    },
+    "SMURFING_VELOCITY": {
+      "id": "TYP-005",
+      "name": "Smurfing / Structuring / Velocity Fraud",
+      "description": "Fraudster breaks large illicit transfers into smaller amounts below reporting thresholds ($10,000 CTR limit) across multiple accounts or time periods to evade detection. High fan-out from a single originator.",
+      "key_signals": [
+        "transactions_just_below_ctr_limit",
+        "high_fan_out_ratio",
+        "multiple_recipients_rapid_succession",
+        "round_number_transactions",
+        "velocity_burst_pattern"
+      ],
+      "graph_pattern": "Account -> [10+ Transactions in 24h, each $9,000-$9,999] -> multiple Accounts",
+      "regulatory_ref": "31 U.S.C. § 5324 (Anti-Structuring)",
+      "recommended_action": "FILE_SAR",
+      "sar_required": true,
+      "approval_tier": "COMPLIANCE_OFFICER"
+    }
+  },
+
+  "action_authorization_matrix": {
+    "ALLOW_TRANSACTION": {
+      "description": "Allow the transaction to proceed",
+      "approval_tier": "AUTOMATED_POLICY",
+      "max_fraud_probability": 0.35,
+      "reversible": true,
+      "sar_required": false
+    },
+    "ADD_TO_WATCHLIST": {
+      "description": "Flag account for enhanced monitoring without blocking",
+      "approval_tier": "AUTOMATED_POLICY",
+      "max_fraud_probability": 0.65,
+      "reversible": true,
+      "sar_required": false
+    },
+    "BLOCK_TRANSACTION": {
+      "description": "Decline the specific transaction; account remains active",
+      "approval_tier": "TIER_1_ANALYST",
+      "max_fraud_probability": 1.0,
+      "reversible": true,
+      "sar_required": false
+    },
+    "STEP_UP_AUTH": {
+      "description": "Trigger MFA challenge before allowing transaction",
+      "approval_tier": "AUTOMATED_POLICY",
+      "max_fraud_probability": 1.0,
+      "reversible": true,
+      "sar_required": false
+    },
+    "FREEZE_ACCOUNT": {
+      "description": "Temporarily freeze all account activity pending investigation",
+      "approval_tier": "TIER_2_ANALYST",
+      "max_fraud_probability": 1.0,
+      "reversible": true,
+      "sar_required": false
+    },
+    "ACCOUNT_HOLD": {
+      "description": "Place legal hold on account funds",
+      "approval_tier": "TIER_2_ANALYST",
+      "max_fraud_probability": 1.0,
+      "reversible": false,
+      "sar_required": false
+    },
+    "FILE_SAR": {
+      "description": "File Suspicious Activity Report with FinCEN within 30 days",
+      "approval_tier": "COMPLIANCE_OFFICER",
+      "max_fraud_probability": 1.0,
+      "reversible": false,
+      "sar_required": true
+    },
+    "ESCALATE_TO_ANALYST": {
+      "description": "Route to human analyst for manual review",
+      "approval_tier": "TIER_1_ANALYST",
+      "max_fraud_probability": 1.0,
+      "reversible": true,
+      "sar_required": false
+    }
+  },
+
+  "sar_filing_rules": {
+    "mandatory_threshold": 0.85,
+    "suspicious_amount_threshold": 5000,
+    "time_to_file_days": 30,
+    "required_fields": [
+      "filing_institution",
+      "subject_information",
+      "suspicious_activity_information",
+      "narrative",
+      "law_enforcement_contact"
+    ]
+  },
+
+  "step_up_auth_policy": {
+    "trigger_conditions": [
+      "new_device_detected",
+      "foreign_ip_detected",
+      "amount_exceeds_threshold",
+      "uncertainty_score_above_threshold"
+    ],
+    "methods": ["OTP_SMS", "OTP_EMAIL", "TOTP_APP", "BIOMETRIC"],
+    "timeout_seconds": 300,
+    "max_retries": 3
+  }
+}

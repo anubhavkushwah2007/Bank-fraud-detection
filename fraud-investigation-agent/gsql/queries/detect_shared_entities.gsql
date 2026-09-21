@@ -1,0 +1,94 @@
+// ============================================================
+// detect_shared_entities.gsql
+// Returns all Accounts sharing the same Card, Device, or IP
+// as the input Account within a configurable sliding window.
+// ============================================================
+
+USE GRAPH FraudGraph
+
+CREATE OR REPLACE QUERY detect_shared_entities(
+    VERTEX<Account> acc,
+    INT   window_days = 30
+) FOR GRAPH FraudGraph
+SYNTAX V2 {
+    /*
+     * Traverse: Account -> Transaction -> {Card | Device | IP_Address} <- Transaction <- Account
+     * within the specified lookback window.
+     * Returns shared accounts with their overlap entity type and count.
+     */
+
+    // ── 1. Gather recent transactions from the source account ──────────────────
+    OrAccum<BOOL>   @visited;
+    SumAccum<INT>   @shared_card_cnt, @shared_device_cnt, @shared_ip_cnt;
+    MapAccum<STRING, INT> @@shared_accounts;  // account_id -> overlap count
+
+    DATETIME cutoff = datetime_add(now(), INTERVAL -window_days DAY);
+
+    seed = {acc};
+
+    // Transactions by source account in window
+    src_txns = SELECT t
+               FROM   seed:a -(PERFORMED_TRANSACTION:e)-> Transaction:t
+               WHERE  e.txn_date >= cutoff;
+
+    // ── 2a. Shared Cards ───────────────────────────────────────────────────────
+    shared_cards = SELECT c
+                   FROM   src_txns:t -(USED_CARD:e)-> Card:c;
+
+    card_txns = SELECT t2
+                FROM   shared_cards:c -(USED_CARD:e)-> Transaction:t2
+                WHERE  t2 != src_txns;    // exclude source account's own txns
+
+    card_accs = SELECT a2
+                FROM   card_txns:t2 -(PERFORMED_TRANSACTION:e)-> Account:a2
+                WHERE  a2 != acc
+                ACCUM  a2.@shared_card_cnt += 1,
+                       @@shared_accounts += (a2 -> 1);
+
+    // ── 2b. Shared Devices ────────────────────────────────────────────────────
+    shared_devs = SELECT d
+                  FROM   src_txns:t -(USED_DEVICE:e)-> Device:d;
+
+    dev_txns = SELECT t2
+               FROM   shared_devs:d -(USED_DEVICE:e)-> Transaction:t2
+               WHERE  t2 != src_txns;
+
+    dev_accs = SELECT a2
+               FROM   dev_txns:t2 -(PERFORMED_TRANSACTION:e)-> Account:a2
+               WHERE  a2 != acc
+               ACCUM  a2.@shared_device_cnt += 1,
+                      @@shared_accounts += (a2 -> 1);
+
+    // ── 2c. Shared IP Addresses ───────────────────────────────────────────────
+    shared_ips = SELECT ip
+                 FROM   src_txns:t -(USED_IP:e)-> IP_Address:ip;
+
+    ip_txns = SELECT t2
+              FROM   shared_ips:ip -(USED_IP:e)-> Transaction:t2
+              WHERE  t2 != src_txns;
+
+    ip_accs = SELECT a2
+              FROM   ip_txns:t2 -(PERFORMED_TRANSACTION:e)-> Account:a2
+              WHERE  a2 != acc
+              ACCUM  a2.@shared_ip_cnt += 1,
+                     @@shared_accounts += (a2 -> 1);
+
+    // ── 3. Return unified result ───────────────────────────────────────────────
+    result = SELECT a
+             FROM   (card_accs UNION dev_accs UNION ip_accs):a
+             WHERE  a.@shared_card_cnt > 0
+                    OR a.@shared_device_cnt > 0
+                    OR a.@shared_ip_cnt > 0
+             ORDER BY (a.@shared_card_cnt + a.@shared_device_cnt + a.@shared_ip_cnt) DESC;
+
+    PRINT result [result.account_id,
+                  result.status,
+                  result.risk_score_current,
+                  result.@shared_card_cnt,
+                  result.@shared_device_cnt,
+                  result.@shared_ip_cnt];
+
+    PRINT @@shared_accounts;
+}
+
+INSTALL QUERY detect_shared_entities

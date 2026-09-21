@@ -1,0 +1,134 @@
+{
+  "case_id": "CASE_2026_014",
+  "typology": "SMURFING_VELOCITY",
+  "initial_trigger": {
+    "account_id": "ACC_275737",
+    "transaction_id": "TXN_9668672",
+    "trigger_type": "VELOCITY_SPIKE",
+    "initial_risk": 0.7941,
+    "amount": 102438.45,
+    "timestamp": "2026-03-20T21:36:00Z"
+  },
+  "graph_scenario": {
+    "new_device_detected": false,
+    "device_id": "DEV_3943",
+    "ip_address": "79.192.137.3",
+    "ip_country": "US",
+    "ip_proxy": false,
+    "shared_device_accounts": [],
+    "shared_ip_accounts": [],
+    "velocity_burst_score": 29.59,
+    "ring_size": 0,
+    "sub_transactions": [
+      {
+        "txn_id": "TXN_9309195",
+        "amount": 9783.44,
+        "ts": "2026-05-12T07:34:00Z"
+      },
+      {
+        "txn_id": "TXN_7593111",
+        "amount": 9356.36,
+        "ts": "2026-02-01T23:26:00Z"
+      },
+      {
+        "txn_id": "TXN_7473274",
+        "amount": 9466.5,
+        "ts": "2026-04-22T17:11:00Z"
+      },
+      {
+        "txn_id": "TXN_3878513",
+        "amount": 9084.03,
+        "ts": "2026-05-07T13:48:00Z"
+      },
+      {
+        "txn_id": "TXN_6655464",
+        "amount": 9279.4,
+        "ts": "2026-06-21T01:29:00Z"
+      },
+      {
+        "txn_id": "TXN_2550477",
+        "amount": 8822.71,
+        "ts": "2026-01-23T23:36:00Z"
+      },
+      {
+        "txn_id": "TXN_9670768",
+        "amount": 9733.97,
+        "ts": "2026-04-28T16:09:00Z"
+      },
+      {
+        "txn_id": "TXN_6408870",
+        "amount": 9010.67,
+        "ts": "2026-05-03T21:00:00Z"
+      },
+      {
+        "txn_id": "TXN_7367677",
+        "amount": 8907.42,
+        "ts": "2026-06-16T12:26:00Z"
+      },
+      {
+        "txn_id": "TXN_6680935",
+        "amount": 9414.26,
+        "ts": "2026-03-03T14:43:00Z"
+      },
+      {
+        "txn_id": "TXN_1352534",
+        "amount": 9579.69,
+        "ts": "2026-02-04T02:56:00Z"
+      }
+    ]
+  },
+  "features": {
+    "C1": 685.1,
+    "C2": 1472.49,
+    "C3": 1428.88,
+    "C4": 1179.82,
+    "C5": 485.31,
+    "C6": 942.93,
+    "C7": 1883.74,
+    "C8": 1214.61,
+    "C9": 1005.22,
+    "C10": 1324.28,
+    "C11": 226.27,
+    "C12": 254.35,
+    "C13": 1225.99,
+    "C14": 622.17,
+    "V1": -0.6376,
+    "V2": 0.4176,
+    "V3": -0.7862,
+    "V4": 0.2869,
+    "V5": 0.8288,
+    "V6": 1.1493,
+    "D1": 2.0,
+    "D2": 234.9,
+    "D3": 38.5,
+    "D4": 332.8,
+    "D5": 177.5,
+    "M1": "T",
+    "M2": "F",
+    "M3": "F",
+    "M4": "F",
+    "M5": "F",
+    "M6": "F",
+    "M7": "F",
+    "M8": "F",
+    "M9": "F",
+    "id_01": -0.3,
+    "id_02": 272.0,
+    "id_12": "Found",
+    "id_15": "New",
+    "id_28": "New",
+    "id_31": "chrome 93.0",
+    "DeviceType": "desktop",
+    "DeviceInfo": "iOS 17",
+    "dist1": 356.3,
+    "dist2": 2279.8,
+    "ProductCD": "S"
+  },
+  "expected": {
+    "fraud_typology": "SMURFING_VELOCITY",
+    "pre_evidence_action": "ADD_TO_WATCHLIST",
+    "post_evidence_action": "FILE_SAR",
+    "sar_required": true,
+    "approval_tier": "COMPLIANCE_OFFICER"
+  }
+}

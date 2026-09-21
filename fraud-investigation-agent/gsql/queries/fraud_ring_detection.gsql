@@ -1,0 +1,72 @@
+// ============================================================
+// fraud_ring_detection.gsql
+// Runs Weakly Connected Components (WCC) to surface tightly-
+// knit fraud rings connected via shared hardware / credentials.
+// Returns component membership and ring risk scores.
+// ============================================================
+
+USE GRAPH FraudGraph
+
+// ── Helper: Label Propagation WCC ─────────────────────────────────────────────
+CREATE OR REPLACE QUERY graph_fraud_ring_detection(
+    FLOAT  min_ring_risk   = 0.60,
+    INT    min_ring_size   = 3
+) FOR GRAPH FraudGraph
+SYNTAX V2 {
+    /*
+     * Algorithm:
+     *  1. Initialize each Account with its own component label (= vertex ID hash).
+     *  2. Propagate minimum label through SHARED_IDENTITY edges (undirected).
+     *  3. Collect component members; compute ring-level risk as max(member risks).
+     *  4. Return components with >= min_ring_size members above min_ring_risk.
+     */
+
+    // Accumulators
+    MinAccum<STRING>          @comp_label;     // current component label
+    MapAccum<STRING, INT>     @@comp_sizes;    // component -> member count
+    MapAccum<STRING, FLOAT>   @@comp_max_risk; // component -> max risk
+    MapAccum<STRING, SetAccum<STRING>> @@comp_members; // component -> account IDs
+
+    // ── Step 1: Initialise labels ─────────────────────────────────────────────
+    all_accounts = {Account.*};
+    all_accounts = SELECT a FROM all_accounts:a
+                   ACCUM a.@comp_label = a.account_id;
+
+    // ── Step 2: Iterative label propagation (max 20 rounds) ──────────────────
+    BOOL changed = TRUE;
+    INT  rounds  = 0;
+    WHILE changed LIMIT 20 DO
+        changed = FALSE;
+        all_accounts = SELECT a
+                       FROM   all_accounts:a -(SHARED_IDENTITY:e)- Account:nb
+                       ACCUM  a.@comp_label  += nb.@comp_label
+                       POST-ACCUM
+                           IF a.@comp_label != a.account_id THEN
+                               changed = TRUE
+                           END;
+        rounds = rounds + 1;
+    END;
+
+    // ── Step 3: Aggregate component statistics ────────────────────────────────
+    all_accounts = SELECT a FROM all_accounts:a
+                   ACCUM  @@comp_sizes   += (a.@comp_label -> 1),
+                          @@comp_max_risk += (a.@comp_label -> a.risk_score_current),
+                          @@comp_members  += (a.@comp_label -> a.account_id);
+
+    // ── Step 4: Emit qualifying fraud rings ───────────────────────────────────
+    result = SELECT a FROM all_accounts:a
+             WHERE @@comp_sizes.get(a.@comp_label) >= min_ring_size
+               AND @@comp_max_risk.get(a.@comp_label) >= min_ring_risk
+             ORDER BY a.@comp_label, a.risk_score_current DESC;
+
+    PRINT result [result.account_id,
+                  result.status,
+                  result.risk_score_current,
+                  result.@comp_label AS component_id];
+
+    PRINT @@comp_sizes    AS component_sizes;
+    PRINT @@comp_max_risk AS component_max_risk;
+    PRINT rounds          AS propagation_rounds;
+}
+
+INSTALL QUERY graph_fraud_ring_detection
