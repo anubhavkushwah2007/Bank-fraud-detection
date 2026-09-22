@@ -8,7 +8,7 @@ Each case covers one of the 5 fraud typologies with varying
 risk levels, evidence strengths, and expected outcomes.
 
 Usage:  python data/generate_benchmark.py
-Output: data/benchmark_cases/case_001.json ... case_020.json
+Output: data/benchmark_cases/HHG-001.json ... HHG-020.json
 """
 from __future__ import annotations
 
@@ -323,11 +323,11 @@ def generate_all_cases() -> List[Dict[str, Any]]:
             cases.append(case)
 
             # Save individual file
-            out_path = OUTPUT_DIR / f"case_{case_num:03d}.json"
+            out_path = OUTPUT_DIR / f"HHG-{case_num:03d}.json"
             with open(out_path, "w") as f:
                 json.dump(case, f, indent=2, default=str)
 
-            print(f"  ✓ case_{case_num:03d}.json  [{typology}]  risk={case['initial_trigger']['initial_risk']:.3f}")
+            print(f"  ✓ HHG-{case_num:03d}.json  [{typology}]  risk={case['initial_trigger']['initial_risk']:.3f}")
             case_num += 1
 
     # Save index file

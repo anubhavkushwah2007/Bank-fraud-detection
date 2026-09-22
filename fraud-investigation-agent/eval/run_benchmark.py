@@ -28,6 +28,11 @@ from typing import Any, Dict, List, Optional
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -195,14 +200,14 @@ def run_single_case(case_data: Dict[str, Any], verbose: bool = False) -> Dict[st
 
 def run_all_cases(verbose: bool = False) -> List[Dict[str, Any]]:
     """Run all 20 benchmark cases and save results."""
-    case_files = sorted(BENCHMARK_DIR.glob("case_*.json"))
+    case_files = sorted(BENCHMARK_DIR.glob("HHG-*.json"))
 
     if not case_files:
         logger.warning(f"No benchmark cases found in {BENCHMARK_DIR}")
         logger.info("Generating benchmark cases first...")
         from data.generate_benchmark import generate_all_cases
         generate_all_cases()
-        case_files = sorted(BENCHMARK_DIR.glob("case_*.json"))
+        case_files = sorted(BENCHMARK_DIR.glob("HHG-*.json"))
 
     results      = []
     pass_counts  = []
@@ -283,7 +288,8 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.case:
-        case_file = BENCHMARK_DIR / f"case_{args.case.zfill(3)}.json"
+        num = args.case.upper().replace("HHG-", "").zfill(3)
+        case_file = BENCHMARK_DIR / f"HHG-{num}.json"
         if not case_file.exists():
             print(f"Case file not found: {case_file}")
             sys.exit(1)

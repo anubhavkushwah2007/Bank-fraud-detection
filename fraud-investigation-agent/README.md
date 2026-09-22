@@ -112,7 +112,7 @@ fraud-investigation-agent/
 ├── data/
 │   ├── ingest_ieee.py           # CSV loader + synthetic data generator
 │   ├── generate_benchmark.py    # 20 test case generator
-│   └── benchmark_cases/         # case_001.json ... case_020.json
+│   └── benchmark_cases/         # HHG-001.json ... HHG-020.json
 ├── graph/
 │   ├── tigergraph_client.py     # pyTigerGraph wrapper + NetworkX mock
 │   └── mcp_server.py            # FastAPI MCP adapter (port 8765)
