@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="HHGOA Fraud Investigation Intelligence — Agentic fraud investigation dashboard powered by TigerGraph, LangGraph, and GraphRAG.">
+    <title>HHGOA Fraud Intelligence | Hacker House गाँव</title>
+    <link rel="icon" href="assets/logo.jpg" type="image/jpeg">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Animated Background Particles -->
+    <canvas id="particleCanvas"></canvas>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <!-- SIDEBAR NAVIGATION -->
+    <!-- ════════════════════════════════════════════════════════ -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <img src="assets/logo.jpg" alt="Hacker House गाँव Logo" class="sidebar-logo" id="sidebarLogo">
+            <div class="sidebar-brand">
+                <span class="brand-title">HHGOA Fraud Intel</span>
+                <span class="brand-subtitle">Agentic Investigation System</span>
+            </div>
+        </div>
+
+        <div class="sidebar-divider"></div>
+
+        <nav class="sidebar-nav" id="sidebarNav">
+            <button class="nav-item active" data-page="home" id="navHome">
+                <span class="nav-icon">🏠</span>
+                <span class="nav-label">Home</span>
+                <span class="nav-indicator"></span>
+            </button>
+            <button class="nav-item" data-page="investigate" id="navInvestigate">
+                <span class="nav-icon">🔍</span>
+                <span class="nav-label">Investigate</span>
+                <span class="nav-indicator"></span>
+            </button>
+            <button class="nav-item" data-page="caseviewer" id="navCaseViewer">
+                <span class="nav-icon">📊</span>
+                <span class="nav-label">Case Viewer</span>
+                <span class="nav-indicator"></span>
+            </button>
+            <button class="nav-item" data-page="graphview" id="navGraphView">
+                <span class="nav-icon">🌐</span>
+                <span class="nav-label">Graph View</span>
+                <span class="nav-indicator"></span>
+            </button>
+            <button class="nav-item" data-page="approvals" id="navApprovals">
+                <span class="nav-icon">✅</span>
+                <span class="nav-label">Approval Queue</span>
+                <span class="nav-badge">3</span>
+                <span class="nav-indicator"></span>
+            </button>
+            <button class="nav-item" data-page="analytics" id="navAnalytics">
+                <span class="nav-icon">📋</span>
+                <span class="nav-label">Analytics</span>
+                <span class="nav-indicator"></span>
+            </button>
+        </nav>
+
+        <div class="sidebar-divider"></div>
+
+        <div class="sidebar-status">
+            <h4 class="status-title">System Status</h4>
+            <div class="status-grid">
+                <div class="status-item">
+                    <span class="status-dot dot-green"></span>
+                    <span class="status-label">Mode</span>
+                    <span class="status-value">DEMO</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-dot dot-green"></span>
+                    <span class="status-label">Agent</span>
+                    <span class="status-value">Active</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-dot dot-blue"></span>
+                    <span class="status-label">Graph DB</span>
+                    <span class="status-value">Mock</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-dot dot-green"></span>
+                    <span class="status-label">RAG</span>
+                    <span class="status-value">Ready</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="sidebar-footer">
+            <span class="version-badge">v2.1.0</span>
+            <span class="footer-date" id="currentDate"></span>
+        </div>
+    </aside>
+
+    <!-- Mobile Sidebar Toggle -->
+    <button class="sidebar-toggle" id="sidebarToggle">
+        <span></span><span></span><span></span>
+    </button>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <!-- MAIN CONTENT -->
+    <!-- ════════════════════════════════════════════════════════ -->
+    <main class="main-content" id="mainContent">
+
+        <!-- ──── PAGE: HOME ──── -->
+        <section class="page active" id="pageHome">
+            <div class="page-header">
+                <div class="header-text">
+                    <h1 class="gradient-title">Fraud Investigation Intelligence</h1>
+                    <p class="header-desc">Real-time agentic fraud investigation powered by TigerGraph + LangGraph + GraphRAG</p>
+                </div>
+                <div class="header-actions">
+                    <button class="btn btn-primary btn-glow" id="btnNewInvestigation">
+                        <span class="btn-icon">🔍</span> New Investigation
+                    </button>
+                    <button class="btn btn-secondary" id="btnRunBenchmark">
+                        <span class="btn-icon">▶</span> Run Benchmark
+                    </button>
+                </div>
+            </div>
+
+            <!-- KPI Cards -->
+            <div class="kpi-grid" id="kpiGrid">
+                <div class="kpi-card kpi-animate" style="--delay: 0">
+                    <div class="kpi-icon-wrap"><span class="kpi-icon">📂</span></div>
+                    <div class="kpi-value" id="kpiActiveCases">8</div>
+                    <div class="kpi-label">Active Cases</div>
+                    <div class="kpi-delta delta-up">+3 today</div>
+                </div>
+                <div class="kpi-card kpi-animate" style="--delay: 1">
+                    <div class="kpi-icon-wrap"><span class="kpi-icon">🔎</span></div>
+                    <div class="kpi-value" id="kpiInvestigated">24</div>
+                    <div class="kpi-label">Investigated</div>
+                    <div class="kpi-delta delta-neutral">24 total</div>
+                </div>
+                <div class="kpi-card kpi-animate" style="--delay: 2">
+                    <div class="kpi-icon-wrap"><span class="kpi-icon">📄</span></div>
+                    <div class="kpi-value" id="kpiSARs">7</div>
+                    <div class="kpi-label">SARs Filed</div>
+                    <div class="kpi-delta delta-up">high priority</div>
+                </div>
+                <div class="kpi-card kpi-animate" style="--delay: 3">
+                    <div class="kpi-icon-wrap"><span class="kpi-icon">❄️</span></div>
+                    <div class="kpi-value" id="kpiFrozen">4</div>
+                    <div class="kpi-label">Accounts Frozen</div>
+                    <div class="kpi-delta delta-warning">critical</div>
+                </div>
+                <div class="kpi-card kpi-animate" style="--delay: 4">
+                    <div class="kpi-icon-wrap"><span class="kpi-icon">📊</span></div>
+                    <div class="kpi-value" id="kpiConfidence">87%</div>
+                    <div class="kpi-label">Avg. Confidence</div>
+                    <div class="kpi-delta delta-up">+2.1%</div>
+                </div>
+            </div>
+
+            <!-- Live Cases + Charts -->
+            <div class="home-grid">
+                <div class="panel panel-cases">
+                    <div class="panel-header">
+                        <h2 class="panel-title"><span class="title-dot dot-red"></span> Live Case Queue</h2>
+                        <span class="panel-subtitle">Sorted by fraud probability — real-time incoming triggers</span>
+                    </div>
+                    <div class="case-list" id="caseList">
+                        <!-- Cases injected by JS -->
+                    </div>
+                </div>
+
+                <div class="panel-stack">
+                    <div class="panel panel-chart">
+                        <div class="panel-header">
+                            <h2 class="panel-title"><span class="title-dot dot-purple"></span> Typology Distribution</h2>
+                        </div>
+                        <div class="chart-container" id="typologyChart">
+                            <canvas id="typologyCanvas"></canvas>
+                        </div>
+                    </div>
+                    <div class="panel panel-quick">
+                        <div class="panel-header">
+                            <h2 class="panel-title"><span class="title-dot dot-cyan"></span> Quick Actions</h2>
+                        </div>
+                        <div class="quick-actions">
+                            <button class="quick-btn" onclick="navigateTo('investigate')">
+                                <span class="quick-icon">🔍</span>
+                                <span>New Investigation</span>
+                            </button>
+                            <button class="quick-btn" onclick="navigateTo('analytics')">
+                                <span class="quick-icon">▶</span>
+                                <span>Run Benchmark</span>
+                            </button>
+                            <button class="quick-btn" onclick="navigateTo('approvals')">
+                                <span class="quick-icon">✅</span>
+                                <span>View Approvals</span>
+                            </button>
+                            <button class="quick-btn" onclick="navigateTo('graphview')">
+                                <span class="quick-icon">🌐</span>
+                                <span>Graph Explorer</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ──── PAGE: INVESTIGATE ──── -->
+        <section class="page" id="pageInvestigate">
+            <div class="page-header">
+                <h1 class="gradient-title" style="font-size: 1.8rem;">🔍 New Investigation</h1>
+                <p class="header-desc">Trigger a new fraud investigation using the agent lifecycle</p>
+            </div>
+
+            <div class="investigate-container">
+                <form class="investigate-form glass-panel" id="investigationForm">
+                    <div class="form-grid">
+                        <div class="form-column">
+                            <div class="form-group">
+                                <label class="form-label" for="accountId">Account ID</label>
+                                <input type="text" class="form-input" id="accountId" placeholder="ACC_XXXXXX" value="">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="triggerType">Trigger Type</label>
+                                <select class="form-select" id="triggerType">
+                                    <option value="HIGH_RISK_SCORE">HIGH_RISK_SCORE</option>
+                                    <option value="VELOCITY_SPIKE">VELOCITY_SPIKE</option>
+                                    <option value="CUSTOMER_DISPUTE">CUSTOMER_DISPUTE</option>
+                                    <option value="ANALYST_INITIATED">ANALYST_INITIATED</option>
+                                    <option value="PATTERN_MATCH">PATTERN_MATCH</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="riskSlider">Initial Risk Score: <span id="riskValue">0.82</span></label>
+                                <input type="range" class="form-range" id="riskSlider" min="0" max="100" value="82">
+                                <div class="range-labels">
+                                    <span>0.0</span><span>0.5</span><span>1.0</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-column">
+                            <div class="form-group">
+                                <label class="form-label" for="transactionId">Transaction ID (optional)</label>
+                                <input type="text" class="form-input" id="transactionId" placeholder="TXN_XXXXXXX" value="">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="txnAmount">Transaction Amount ($)</label>
+                                <input type="number" class="form-input" id="txnAmount" placeholder="8750.00" value="8750" step="100">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Evidence Overrides (Demo)</label>
+                                <div class="checkbox-group">
+                                    <label class="form-checkbox">
+                                        <input type="checkbox" id="ipProxy" checked>
+                                        <span class="checkbox-mark"></span>
+                                        <span class="checkbox-label">Proxy/VPN IP detected</span>
+                                    </label>
+                                    <label class="form-checkbox">
+                                        <input type="checkbox" id="newDevice" checked>
+                                        <span class="checkbox-mark"></span>
+                                        <span class="checkbox-label">New device detected</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-glow btn-wide" id="btnRunInvestigation">
+                        <span class="btn-icon">🚀</span> Run Investigation
+                    </button>
+                </form>
+
+                <!-- Investigation Progress & Results -->
+                <div class="investigation-results" id="investigationResults" style="display: none;">
+                    <div class="progress-section glass-panel" id="progressSection">
+                        <h3 class="progress-title">Investigation Progress</h3>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar" id="progressBar"></div>
+                        </div>
+                        <p class="progress-stage" id="progressStage">Initializing...</p>
+                        <div class="progress-stages" id="progressStages"></div>
+                    </div>
+
+                    <div class="results-metrics" id="resultsMetrics" style="display: none;">
+                        <div class="kpi-grid kpi-grid-4">
+                            <div class="kpi-card kpi-small">
+                                <div class="kpi-value result-fraud-prob" id="resFraudProb">94%</div>
+                                <div class="kpi-label">Fraud Probability</div>
+                            </div>
+                            <div class="kpi-card kpi-small">
+                                <div class="kpi-value result-uncertainty" id="resUncertainty">12%</div>
+                                <div class="kpi-label">Uncertainty</div>
+                            </div>
+                            <div class="kpi-card kpi-small">
+                                <div class="kpi-value result-typology" id="resTypology">ACCOUNT_TAKEOVER</div>
+                                <div class="kpi-label">Typology</div>
+                            </div>
+                            <div class="kpi-card kpi-small">
+                                <div class="kpi-value result-action" id="resAction">❄️ FREEZE</div>
+                                <div class="kpi-label">Final Action</div>
+                            </div>
+                        </div>
+
+                        <!-- Result Tabs -->
+                        <div class="result-tabs glass-panel">
+                            <div class="tab-header">
+                                <button class="tab-btn active" data-tab="summary">📋 Summary</button>
+                                <button class="tab-btn" data-tab="evidence">🔐 Evidence</button>
+                                <button class="tab-btn" data-tab="sar">📄 SAR Draft</button>
+                            </div>
+                            <div class="tab-content active" id="tabSummary">
+                                <div class="summary-text" id="summaryContent"></div>
+                            </div>
+                            <div class="tab-content" id="tabEvidence">
+                                <div class="evidence-grid" id="evidenceContent"></div>
+                            </div>
+                            <div class="tab-content" id="tabSar">
+                                <div class="sar-content" id="sarContent"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ──── PAGE: CASE VIEWER ──── -->
+        <section class="page" id="pageCaseviewer">
+            <div class="page-header">
+                <h1 class="gradient-title" style="font-size: 1.8rem;">📊 Case Viewer</h1>
+                <p class="header-desc">Deep-dive into a specific case result</p>
+            </div>
+
+            <div class="case-viewer-container">
+                <div class="form-group" style="max-width: 400px;">
+                    <label class="form-label" for="caseSelect">Select Case</label>
+                    <select class="form-select" id="caseSelect"></select>
+                </div>
+
+                <div class="case-detail glass-panel" id="caseDetail">
+                    <div class="kpi-grid kpi-grid-5" id="caseMetrics"></div>
+
+                    <div class="result-tabs">
+                        <div class="tab-header">
+                            <button class="tab-btn active" data-tab="cv-full">🔍 Full Result</button>
+                            <button class="tab-btn" data-tab="cv-score">📈 Score</button>
+                            <button class="tab-btn" data-tab="cv-audit">📋 Audit Trail</button>
+                            <button class="tab-btn" data-tab="cv-sar">📄 SAR</button>
+                        </div>
+                        <div class="tab-content active" id="tabCvFull">
+                            <pre class="code-block" id="caseFullJson"></pre>
+                        </div>
+                        <div class="tab-content" id="tabCvScore">
+                            <div id="caseScoreContent"></div>
+                        </div>
+                        <div class="tab-content" id="tabCvAudit">
+                            <div class="audit-trail" id="caseAuditContent"></div>
+                        </div>
+                        <div class="tab-content" id="tabCvSar">
+                            <div id="caseSarContent"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ──── PAGE: GRAPH VIEW ──── -->
+        <section class="page" id="pageGraphview">
+            <div class="page-header">
+                <h1 class="gradient-title" style="font-size: 1.8rem;">🌐 Graph Visualizer</h1>
+                <p class="header-desc">Interactive subgraph view for the fraud investigation network</p>
+            </div>
+
+            <div class="graph-controls glass-panel">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="graphAccountId">Account ID</label>
+                        <input type="text" class="form-input" id="graphAccountId" value="ACC_001">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="hopDepth">Hop Depth</label>
+                        <select class="form-select" id="hopDepth">
+                            <option value="1">1 Hop</option>
+                            <option value="2" selected>2 Hops</option>
+                            <option value="3">3 Hops</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" id="btnLoadGraph">
+                        <span class="btn-icon">🔍</span> Load Subgraph
+                    </button>
+                </div>
+            </div>
+
+            <div class="graph-viewport glass-panel" id="graphViewport">
+                <canvas id="graphCanvas"></canvas>
+                <div class="graph-legend">
+                    <div class="legend-item"><span class="legend-dot" style="background: #38bdf8;"></span> Account</div>
+                    <div class="legend-item"><span class="legend-dot" style="background: #818cf8;"></span> Transaction</div>
+                    <div class="legend-item"><span class="legend-dot" style="background: #f472b6;"></span> Device</div>
+                    <div class="legend-item"><span class="legend-dot" style="background: #fb923c;"></span> IP Address</div>
+                    <div class="legend-item"><span class="legend-dot" style="background: #4ade80;"></span> Card</div>
+                </div>
+                <div class="graph-info" id="graphInfo">
+                    <span id="graphNodeCount">0</span> nodes, <span id="graphEdgeCount">0</span> edges
+                </div>
+            </div>
+        </section>
+
+        <!-- ──── PAGE: APPROVALS ──── -->
+        <section class="page" id="pageApprovals">
+            <div class="page-header">
+                <h1 class="gradient-title" style="font-size: 1.8rem;">✅ Approval Queue</h1>
+                <p class="header-desc">Cases awaiting analyst or compliance officer sign-off</p>
+            </div>
+
+            <div class="approval-controls">
+                <div class="form-group" style="max-width: 280px;">
+                    <label class="form-label" for="tierFilter">Filter by Tier</label>
+                    <select class="form-select" id="tierFilter">
+                        <option value="all">All</option>
+                        <option value="TIER_1_ANALYST">Tier 1 — Analyst</option>
+                        <option value="TIER_2_ANALYST">Tier 2 — Analyst</option>
+                        <option value="COMPLIANCE_OFFICER">Compliance Officer</option>
+                    </select>
+                </div>
+                <div class="kpi-card kpi-inline">
+                    <div class="kpi-value" id="pendingCount">3</div>
+                    <div class="kpi-label">Pending Cases</div>
+                </div>
+            </div>
+
+            <div class="approval-list" id="approvalList">
+                <!-- Approval cards injected by JS -->
+            </div>
+        </section>
+
+        <!-- ──── PAGE: ANALYTICS ──── -->
+        <section class="page" id="pageAnalytics">
+            <div class="page-header">
+                <h1 class="gradient-title" style="font-size: 1.8rem;">📋 Benchmark Analytics</h1>
+                <p class="header-desc">Automated evaluation of 20 IEEE-CIS-shaped benchmark test cases</p>
+            </div>
+
+            <div class="analytics-run glass-panel">
+                <button class="btn btn-primary btn-glow" id="btnRunBenchmarkAnalytics">
+                    <span class="btn-icon">▶</span> Run Benchmark (20 cases)
+                </button>
+                <span class="analytics-note">Runs all 20 benchmark test cases through the full 8-stage agent lifecycle.</span>
+            </div>
+
+            <div class="kpi-grid kpi-grid-5" id="analyticsKpis">
+                <div class="kpi-card kpi-animate" style="--delay: 0">
+                    <div class="kpi-value" id="anTotalCases">20</div>
+                    <div class="kpi-label">Total Cases</div>
+                </div>
+                <div class="kpi-card kpi-animate" style="--delay: 1">
+                    <div class="kpi-value" id="anSARs">7</div>
+                    <div class="kpi-label">SARs Required</div>
+                </div>
+                <div class="kpi-card kpi-animate" style="--delay: 2">
+                    <div class="kpi-value" id="anFrozen">4</div>
+                    <div class="kpi-label">Accounts Frozen</div>
+                </div>
+                <div class="kpi-card kpi-animate" style="--delay: 3">
+                    <div class="kpi-value" id="anBlocked">5</div>
+                    <div class="kpi-label">Txns Blocked</div>
+                </div>
+                <div class="kpi-card kpi-animate" style="--delay: 4">
+                    <div class="kpi-value" id="anSarsFiled">3</div>
+                    <div class="kpi-label">SARs Filed</div>
+                </div>
+            </div>
+
+            <div class="analytics-charts-grid">
+                <div class="panel panel-chart glass-panel">
+                    <h3 class="panel-title"><span class="title-dot dot-cyan"></span> Action Distribution</h3>
+                    <div class="chart-container">
+                        <canvas id="actionChart"></canvas>
+                    </div>
+                </div>
+                <div class="panel panel-chart glass-panel">
+                    <h3 class="panel-title"><span class="title-dot dot-purple"></span> Confidence Distribution</h3>
+                    <div class="chart-container">
+                        <canvas id="confidenceChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel glass-panel" style="margin-top: 24px;">
+                <h3 class="panel-title"><span class="title-dot dot-green"></span> Benchmark Summary</h3>
+                <div class="summary-metrics" id="benchmarkSummary">
+                    <div class="kpi-grid kpi-grid-3">
+                        <div class="kpi-card kpi-small">
+                            <div class="kpi-value">52/60</div>
+                            <div class="kpi-label">Overall Score</div>
+                        </div>
+                        <div class="kpi-card kpi-small">
+                            <div class="kpi-value">86.7%</div>
+                            <div class="kpi-label">Pass Rate</div>
+                        </div>
+                        <div class="kpi-card kpi-small">
+                            <div class="kpi-value" id="benchTs">2026-09-23</div>
+                            <div class="kpi-label">Run Timestamp</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="data-table-wrap">
+                    <table class="data-table" id="benchmarkTable">
+                        <thead>
+                            <tr>
+                                <th>Case ID</th>
+                                <th>Typology</th>
+                                <th>Action</th>
+                                <th>Confidence</th>
+                                <th>Pass Rate</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="benchmarkTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Toast Notification Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>
