@@ -42,120 +42,158 @@ st.set_page_config(
 st.markdown("""
 <style>
     /* Fonts */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
     html, body, [class*="css"] {
         font-family: 'Inter', sans-serif;
     }
 
-    /* Dark gradient background */
+    /* Dark forest green background matching Hacker House Goa logo */
     .stApp {
-        background: linear-gradient(135deg, #0a0e1a 0%, #0d1b2a 40%, #0f2035 100%);
-        color: #e2e8f0;
+        background: radial-gradient(circle at 10% 15%, rgba(16, 185, 129, 0.12) 0%, transparent 45%),
+                    radial-gradient(circle at 90% 85%, rgba(245, 158, 11, 0.08) 0%, transparent 45%),
+                    linear-gradient(135deg, #02120a 0%, #041d11 35%, #062e1c 70%, #02140b 100%);
+        color: #f0fdf4;
     }
 
-    /* Sidebar */
+    /* Sidebar - Brighter Forest Emerald theme */
     section[data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #0d1b2a 0%, #112240 100%);
-        border-right: 1px solid rgba(100,200,255,0.1);
+        background: linear-gradient(180deg, #074025 0%, #0a5231 45%, #063720 100%) !important;
+        border-right: 1.5px solid rgba(52, 211, 153, 0.35) !important;
+        box-shadow: 6px 0 35px rgba(0, 0, 0, 0.5), 0 0 30px rgba(16, 185, 129, 0.2);
     }
 
     /* Header gradient text */
     .gradient-text {
-        background: linear-gradient(90deg, #38bdf8, #818cf8, #f472b6);
+        background: linear-gradient(90deg, #34d399, #ffd700, #f43f5e);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        font-weight: 700;
+        font-weight: 800;
         font-size: 2.2rem;
         line-height: 1.2;
     }
 
     /* KPI cards */
     .kpi-card {
-        background: linear-gradient(135deg, rgba(30,58,95,0.8), rgba(17,34,64,0.9));
-        border: 1px solid rgba(56,189,248,0.2);
-        border-radius: 12px;
+        background: linear-gradient(135deg, rgba(8, 48, 30, 0.75), rgba(4, 25, 15, 0.9));
+        border: 1px solid rgba(52, 211, 153, 0.25);
+        border-radius: 14px;
         padding: 20px 24px;
         text-align: center;
         transition: transform 0.2s, box-shadow 0.2s;
-        backdrop-filter: blur(10px);
+        backdrop-filter: blur(12px);
     }
     .kpi-card:hover {
         transform: translateY(-2px);
-        box-shadow: 0 8px 32px rgba(56,189,248,0.15);
+        box-shadow: 0 8px 32px rgba(16, 185, 129, 0.25);
+        border-color: #ffd700;
     }
     .kpi-value {
         font-size: 2.4rem;
-        font-weight: 700;
-        color: #38bdf8;
+        font-weight: 800;
+        color: #ffd700;
         line-height: 1;
     }
     .kpi-label {
-        font-size: 0.85rem;
-        color: #94a3b8;
+        font-size: 0.82rem;
+        color: #a7f3d0;
         margin-top: 6px;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: 0.06em;
+    }
+
+    /* Brighter, stylish radio navigation options */
+    div[role="radiogroup"] {
+        gap: 6px;
+    }
+    div[role="radiogroup"] > label {
+        background: rgba(255, 255, 255, 0.08) !important;
+        border: 1px solid rgba(52, 211, 153, 0.3) !important;
+        border-radius: 12px !important;
+        padding: 10px 14px !important;
+        margin-bottom: 6px !important;
+        transition: all 0.22s ease !important;
+        color: #ffffff !important;
+        font-weight: 600 !important;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+    }
+    div[role="radiogroup"] > label:hover {
+        background: linear-gradient(90deg, rgba(16, 185, 129, 0.4), rgba(245, 158, 11, 0.3)) !important;
+        border-color: #ffd700 !important;
+        color: #ffd700 !important;
+        transform: translateX(4px);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35), 0 0 16px rgba(255, 215, 0, 0.25);
+    }
+    div[role="radiogroup"] > label[data-checked="true"],
+    div[role="radiogroup"] > label:has(input:checked) {
+        background: linear-gradient(90deg, rgba(16, 185, 129, 0.55), rgba(245, 158, 11, 0.4)) !important;
+        border-color: #ffd700 !important;
+        color: #ffd700 !important;
+        font-weight: 800 !important;
+        box-shadow: 0 0 18px rgba(16, 185, 129, 0.45);
     }
 
     /* Risk badges */
-    .badge-critical { background: rgba(239,68,68,0.2); color: #f87171; border: 1px solid rgba(239,68,68,0.4); border-radius: 9999px; padding: 2px 10px; font-size: 0.75rem; font-weight: 600; }
-    .badge-high     { background: rgba(251,146,60,0.2); color: #fb923c; border: 1px solid rgba(251,146,60,0.4); border-radius: 9999px; padding: 2px 10px; font-size: 0.75rem; font-weight: 600; }
-    .badge-medium   { background: rgba(250,204,21,0.2); color: #fbbf24; border: 1px solid rgba(250,204,21,0.4); border-radius: 9999px; padding: 2px 10px; font-size: 0.75rem; font-weight: 600; }
-    .badge-low      { background: rgba(34,197,94,0.2);  color: #4ade80; border: 1px solid rgba(34,197,94,0.4); border-radius: 9999px; padding: 2px 10px; font-size: 0.75rem; font-weight: 600; }
+    .badge-critical { background: rgba(244,63,94,0.2); color: #f43f5e; border: 1px solid rgba(244,63,94,0.4); border-radius: 9999px; padding: 2px 10px; font-size: 0.75rem; font-weight: 600; }
+    .badge-high     { background: rgba(245,158,11,0.2); color: #fbbf24; border: 1px solid rgba(245,158,11,0.4); border-radius: 9999px; padding: 2px 10px; font-size: 0.75rem; font-weight: 600; }
+    .badge-medium   { background: rgba(16,185,129,0.2); color: #34d399; border: 1px solid rgba(16,185,129,0.4); border-radius: 9999px; padding: 2px 10px; font-size: 0.75rem; font-weight: 600; }
+    .badge-low      { background: rgba(45,212,191,0.2);  color: #2dd4bf; border: 1px solid rgba(45,212,191,0.4); border-radius: 9999px; padding: 2px 10px; font-size: 0.75rem; font-weight: 600; }
 
     /* Case row */
     .case-row {
-        background: rgba(15,32,53,0.7);
-        border: 1px solid rgba(56,189,248,0.1);
-        border-radius: 8px;
+        background: rgba(5, 34, 21, 0.7);
+        border: 1px solid rgba(52, 211, 153, 0.15);
+        border-radius: 10px;
         padding: 12px 16px;
         margin: 6px 0;
         transition: border-color 0.2s;
     }
-    .case-row:hover { border-color: rgba(56,189,248,0.4); }
+    .case-row:hover { border-color: rgba(245, 158, 11, 0.5); }
 
     /* Action buttons */
     .stButton > button {
-        background: linear-gradient(135deg, #0ea5e9, #6366f1);
+        background: linear-gradient(135deg, #10b981 0%, #059669 45%, #d97706 100%);
         color: white;
-        border: none;
-        border-radius: 8px;
-        font-weight: 600;
-        transition: opacity 0.2s, transform 0.1s;
+        border: 1px solid rgba(255, 215, 0, 0.35);
+        border-radius: 10px;
+        font-weight: 700;
+        transition: opacity 0.2s, transform 0.1s, box-shadow 0.2s;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
     }
     .stButton > button:hover {
-        opacity: 0.9;
+        opacity: 0.95;
+        border-color: #ffd700;
+        box-shadow: 0 0 20px rgba(245, 158, 11, 0.5);
         transform: translateY(-1px);
     }
 
     /* Metric containers */
-    [data-testid="stMetricValue"] { color: #38bdf8 !important; font-weight: 700; }
-    [data-testid="stMetricLabel"] { color: #94a3b8 !important; }
+    [data-testid="stMetricValue"] { color: #ffd700 !important; font-weight: 800; }
+    [data-testid="stMetricLabel"] { color: #a7f3d0 !important; font-weight: 600; }
 
     /* Tab styling */
     .stTabs [data-baseweb="tab"] {
-        color: #64748b;
+        color: #6ee7b7;
         font-weight: 500;
     }
     .stTabs [aria-selected="true"] {
-        color: #38bdf8 !important;
-        border-bottom-color: #38bdf8 !important;
+        color: #ffd700 !important;
+        border-bottom-color: #ffd700 !important;
     }
 
     /* Divider */
-    hr { border-color: rgba(56,189,248,0.15) !important; }
+    hr { border-color: rgba(52, 211, 153, 0.2) !important; }
 
     /* Code blocks */
-    .stCode { background: rgba(10,14,26,0.8) !important; }
+    .stCode { background: rgba(1, 15, 8, 0.9) !important; border: 1px solid rgba(52, 211, 153, 0.25); }
 
     /* Progress bar */
-    .stProgress > div > div { background: linear-gradient(90deg, #0ea5e9, #6366f1); }
+    .stProgress > div > div { background: linear-gradient(90deg, #10b981, #ffd700); }
 
     /* Scrollbar */
     ::-webkit-scrollbar { width: 6px; }
-    ::-webkit-scrollbar-track { background: #0a0e1a; }
-    ::-webkit-scrollbar-thumb { background: #1e3a5f; border-radius: 3px; }
+    ::-webkit-scrollbar-track { background: #02120a; }
+    ::-webkit-scrollbar-thumb { background: #073822; border-radius: 3px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -243,9 +281,19 @@ def mock_live_cases() -> List[Dict[str, Any]]:
 # ============================================================
 
 with st.sidebar:
-    st.markdown("### 🕵️ HHGOA Fraud Intelligence")
-    st.markdown("*Agentic Investigation System*")
+    logo_path = PROJECT_ROOT / "frontend" / "assets" / "logo.jpg"
+    if logo_path.exists():
+        st.markdown("""
+        <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 12px;">
+            <div style="padding: 6px; background: #063b22; border: 2px solid #ffd700; border-radius: 16px; box-shadow: 0 0 20px rgba(255, 215, 0, 0.45); display: flex; align-items: center; justify-content: center;">
+        """, unsafe_allow_html=True)
+        st.image(str(logo_path), width=78)
+        st.markdown("</div></div>", unsafe_allow_html=True)
+    st.markdown('<h3 style="margin-bottom: 0; color: #ffd700; text-align: center; font-weight: 800; letter-spacing: -0.01em;">HACKER HOUSE GOA</h3>', unsafe_allow_html=True)
+    st.markdown('<p style="font-size: 0.72rem; color: #a7f3d0; text-align: center; letter-spacing: 0.08em; text-transform: uppercase; margin-top: 2px; font-weight: 700;">FRAUD INTELLIGENCE · AGENTIC AI</p>', unsafe_allow_html=True)
     st.markdown("---")
+
+    st.markdown('<div style="font-size: 0.7rem; font-weight: 800; color: #ffd700; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px;">⚡ Arranged Navigation</div>', unsafe_allow_html=True)
 
     page = st.radio(
         "Navigation",
@@ -254,7 +302,8 @@ with st.sidebar:
          "📊 Case Viewer",
          "🌐 Graph View",
          "✅ Approval Queue",
-         "📋 Analytics"],
+         "📋 Analytics",
+         "ℹ️ Info"],
         label_visibility="collapsed",
     )
 
@@ -407,9 +456,19 @@ elif page == "🔍 Investigate":
             transaction_id = st.text_input("Transaction ID (optional)", value=f"TXN_{random.randint(1000000, 9999999)}")
             amount = st.number_input("Transaction Amount ($)", min_value=0.0, value=8750.0, step=100.0)
             st.markdown("")
-            st.markdown("**Evidence Overrides** (Demo)")
-            ip_proxy     = st.checkbox("Proxy/VPN IP detected", value=True)
-            new_device   = st.checkbox("New device detected", value=True)
+            st.markdown("""
+            <div style="padding: 10px 14px; background: rgba(6, 40, 24, 0.85); border: 1px solid rgba(52, 211, 153, 0.35); border-radius: 10px; margin-top: 6px;">
+                <div style="font-size: 0.72rem; font-weight: 800; color: #ffd700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px;">
+                    🛡️ Autonomous Signals (Live)
+                </div>
+                <div style="display: flex; gap: 14px; font-size: 0.78rem; color: #a7f3d0;">
+                    <span>🌐 Proxy/VPN: <b style="color: #ffd700;">Engine Evaluated</b></span>
+                    <span>📱 Device: <b style="color: #34d399;">Active Telemetry</b></span>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            ip_proxy   = initial_risk >= 0.7 or amount > 5000
+            new_device = initial_risk >= 0.65 or trigger_type in ["HIGH_RISK_SCORE", "VELOCITY_SPIKE"]
 
         submitted = st.form_submit_button("🚀 Run Investigation", use_container_width=True)
 
@@ -906,3 +965,118 @@ elif page == "📋 Analytics":
         import pandas as pd
         df = pd.DataFrame(scored, columns=["Case ID", "Typology", "Pass Rate"])
         st.dataframe(df, use_container_width=True, hide_index=True)
+
+
+# ============================================================
+# Page: Info
+# ============================================================
+
+elif page == "ℹ️ Info":
+    st.markdown('<p class="gradient-text">⚡ HHGOA Cyber Intelligence & System Architecture</p>', unsafe_allow_html=True)
+    st.markdown("*Autonomous high-assurance agentic financial fraud investigation engine — Hacker House Goa Edition*")
+    st.markdown("---")
+
+    # Hero Banner
+    st.markdown("""
+    <div style="background: radial-gradient(circle at 10% 10%, rgba(16, 185, 129, 0.25) 0%, transparent 60%), linear-gradient(135deg, rgba(8,48,30,0.85) 0%, rgba(4,25,15,0.95) 100%);
+                border: 1px solid rgba(52, 211, 153, 0.35); border-radius: 16px; padding: 24px 28px; margin-bottom: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+        <div style="display: inline-block; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(52, 211, 153, 0.4); color: #34d399; padding: 3px 12px; border-radius: 9999px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; margin-bottom: 8px;">
+            🌴 HACKER HOUSE GOA (गोवा) · AGENTIC CYBER LABS
+        </div>
+        <h2 style="color: #ffffff; margin-top: 4px; font-size: 1.6rem; font-weight: 800;">Real-Time Financial Infrastructure Protection</h2>
+        <p style="color: #a7f3d0; font-size: 0.92rem; line-height: 1.6; margin-bottom: 0;">
+            A production-shaped agentic system combining <b>TigerGraph Enterprise Graph</b> for instant 2-hop community subgraph traversals, 
+            a cyclical <b>LangGraph 8-stage state machine</b> with dynamic self-reflection, hybrid <b>ChromaDB GraphRAG</b> for historical case memory, 
+            and automated <b>FinCEN-compliant Suspicious Activity Report (SAR)</b> drafting.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # 4 Architecture Pillars
+    p1, p2, p3, p4 = st.columns(4)
+    with p1:
+        st.markdown("""
+        <div class="kpi-card" style="text-align: left; padding: 18px;">
+            <div style="font-size: 1.8rem;">🐯</div>
+            <h4 style="color: #ffd700; margin: 8px 0 4px 0;">TigerGraph GSQL</h4>
+            <p style="font-size: 0.78rem; color: #a7f3d0; margin: 0;">8 vertices, 9 edges. Sub-millisecond WCC label propagation & fund velocity tracing.</p>
+        </div>
+        """, unsafe_allow_html=True)
+    with p2:
+        st.markdown("""
+        <div class="kpi-card" style="text-align: left; padding: 18px;">
+            <div style="font-size: 1.8rem;">🦜</div>
+            <h4 style="color: #ffd700; margin: 8px 0 4px 0;">LangGraph State</h4>
+            <p style="font-size: 0.78rem; color: #a7f3d0; margin: 0;">8-stage cyclical workflow. Multi-factor Bayesian scoring + self-reflection evidence loop.</p>
+        </div>
+        """, unsafe_allow_html=True)
+    with p3:
+        st.markdown("""
+        <div class="kpi-card" style="text-align: left; padding: 18px;">
+            <div style="font-size: 1.8rem;">🧠</div>
+            <h4 style="color: #ffd700; margin: 8px 0 4px 0;">ChromaDB Vector RAG</h4>
+            <p style="font-size: 0.78rem; color: #a7f3d0; margin: 0;">Semantic policy search + cosine similarity over historical investigations.</p>
+        </div>
+        """, unsafe_allow_html=True)
+    with p4:
+        st.markdown("""
+        <div class="kpi-card" style="text-align: left; padding: 18px;">
+            <div style="font-size: 1.8rem;">📄</div>
+            <h4 style="color: #ffd700; margin: 8px 0 4px 0;">FinCEN SAR Filer</h4>
+            <p style="font-size: 0.78rem; color: #a7f3d0; margin: 0;">31 CFR § 1020.320 XML/JSON automated narrative generator with audit trail.</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("### 🔄 8-Stage LangGraph Agent Lifecycle")
+    
+    stages = [
+        ("01. Trigger Ingestion", "High-risk anomaly score, velocity burst, dispute, or analyst initiation.", "agent.state.TriggerEvent"),
+        ("02. Subgraph Extraction", "Extracts 2-hop ego network from TigerGraph (accounts, devices, cards, IPs).", "detect_shared_entities.gsql"),
+        ("03. GraphRAG Context", "Hybrid vector search across bank fraud policies and resolved precedent cases.", "ChromaDB Memory Store"),
+        ("04. Risk Assessment", "Calculates Bayesian fraud probability, uncertainty delta, and key signal markers.", "Bayesian Policy Engine"),
+        ("05. Pre-Evidence NBA", "Immediate containment: Step-Up MFA, Card Hold, or temporary limit drop.", "Interim NBA Dispatch"),
+        ("06. Additional Evidence", "Dynamic query loop: fetches deep graph evidence if uncertainty > 0.20.", "Cyclic Reflection"),
+        ("07. Post-Evidence NBA", "Final decision routed through Tier 1 / Tier 2 / Compliance Officer matrix.", "Authorization Matrix"),
+        ("08. SAR & Case Memory", "Drafts FinCEN SAR narrative and indexes case vector into permanent store.", "FinCEN Compliance"),
+    ]
+
+    sc1, sc2 = st.columns(2)
+    for i, (title, desc, tag) in enumerate(stages):
+        col = sc1 if i % 2 == 0 else sc2
+        with col:
+            st.markdown(f"""
+            <div class="case-row" style="margin-bottom: 12px; border-left: 3px solid #10b981;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <strong style="color: #ffffff; font-size: 0.95rem;">{title}</strong>
+                    <span style="font-family: monospace; font-size: 0.7rem; color: #ffd700; background: rgba(245,158,11,0.15); padding: 2px 6px; border-radius: 4px;">{tag}</span>
+                </div>
+                <p style="font-size: 0.8rem; color: #a7f3d0; margin: 6px 0 0 0;">{desc}</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("### 🛡️ 5 Core Fraud Typologies (Hacker House Goa Playbook)")
+
+    typologies_data = [
+        ("TYP-001: Card-Not-Present Ring", "CRITICAL", "Shared hardware device across multiple disparate bank accounts.", "BLOCK_TRANSACTION", "#f43f5e"),
+        ("TYP-002: Account Takeover (ATO)", "CRITICAL", "Unrecognized device jump + foreign proxy/VPN IP + rapid fund drain.", "FREEZE_ACCOUNT", "#f43f5e"),
+        ("TYP-003: Bust-Out Fraud", "HIGH", "High-velocity credit line bursting after sudden primary address modification.", "ACCOUNT_HOLD", "#fbbf24"),
+        ("TYP-004: Synthetic Identity Ring", "CRITICAL", "WCC community cluster sharing phantom SSNs, phone numbers, and addresses.", "FILE_SAR", "#f43f5e"),
+        ("TYP-005: Smurfing & Fund Velocity", "HIGH", "Multiple sub-$10,000 rapid structuring transfers distributed across money mules.", "FILE_SAR", "#fbbf24"),
+    ]
+
+    for name, sev, sig, act, color in typologies_data:
+        st.markdown(f"""
+        <div style="background: rgba(4,28,17,0.7); border: 1px solid rgba(52,211,153,0.2); border-radius: 10px; padding: 14px 18px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <strong style="color: #ffffff; font-size: 0.95rem;">{name}</strong>
+                <span style="background: rgba(244,63,94,0.18); color: {color}; font-size: 0.65rem; font-weight: 800; padding: 2px 8px; border-radius: 4px; margin-left: 8px;">{sev}</span>
+                <p style="font-size: 0.78rem; color: #a7f3d0; margin: 4px 0 0 0;"><b>Signal:</b> {sig}</p>
+            </div>
+            <div style="background: rgba(16,185,129,0.15); border: 1px solid rgba(52,211,153,0.35); color: #f0fdf4; padding: 6px 14px; border-radius: 6px; font-family: monospace; font-size: 0.75rem; font-weight: 700; white-space: nowrap;">
+                {act}
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+

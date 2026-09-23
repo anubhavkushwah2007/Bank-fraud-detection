@@ -82,6 +82,14 @@ python data/generate_benchmark.py
 
 ### 4. Run the Dashboard
 
+**Option A: New Interactive Web Frontend (HTML / CSS / JS)**
+```bash
+# Serve the frontend on port 8000
+python -m http.server 8000 --directory frontend
+# Then open http://localhost:8000 in your browser
+```
+
+**Option B: Streamlit Python Dashboard**
 ```bash
 streamlit run ui/app.py
 ```
