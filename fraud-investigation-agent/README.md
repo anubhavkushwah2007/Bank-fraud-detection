@@ -1,17 +1,18 @@
-# HHGOA Fraud Investigation Agent — README
+﻿# HHGOA Fraud Investigation Agent — README
 
 <div align="center">
 
 ```
 ╔═══════════════════════════════════════════════════════════╗
 ║  HHGOA  │  Agentic Fraud Investigation System            ║
-║  TigerGraph + LangGraph + GraphRAG + Streamlit           ║
+║  TigerGraph + LangGraph + GraphRAG + Vision UI           ║
 ╚═══════════════════════════════════════════════════════════╝
 ```
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://python.org)
 [![LangGraph](https://img.shields.io/badge/LangGraph-0.2+-green.svg)](https://langchain-ai.github.io/langgraph/)
 [![TigerGraph](https://img.shields.io/badge/TigerGraph-MCP-orange.svg)](https://tigergraph.com)
+[![Frontend](https://img.shields.io/badge/Frontend-Vision%20UI-brightgreen.svg)](#️-frontend-dashboard)
 
 </div>
 
@@ -21,10 +22,11 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    ANALYST DASHBOARD (Streamlit)                 │
-│        Case Queue │ Graph View │ Approval Queue │ Analytics      │
+│              VISION UI DASHBOARD (HTML / CSS / JS)               │
+│  Home · Investigate · Case Viewer · Graph View · Approval Queue  │
+│  Analytics · System Info                                         │
 └────────────────────────────┬────────────────────────────────────┘
-                             │
+                             │ REST / mock JSON
 ┌────────────────────────────▼────────────────────────────────────┐
 │              LANGGRAPH AGENT WORKFLOW (8 Stages)                 │
 │  Trigger → Investigate → GraphRAG → Assess Risk → Pre-NBA       │
@@ -48,6 +50,40 @@
                            └───────────────────────────────────┘
 ```
 
+---
+
+## 🖥️ Frontend Dashboard
+
+The primary interface is a **premium Vision UI-inspired dashboard** built with vanilla HTML, CSS, and JavaScript — no build step required.
+
+### Pages
+- **Home** — KPI mini-cards, welcome hero, detection accuracy gauge, threat mitigation index, velocity trend chart, typology donut chart, live case queue table, agent activity feed
+- **Investigate** — Account ID / transaction lookup form, LangGraph 8-stage workflow visualiser, evidence panel, NBA recommendation
+- **Case Viewer** — Searchable case list with fraud risk bars, status badges, full dossier view
+- **Graph View** — Interactive TigerGraph subgraph canvas (NetworkX mock in demo mode)
+- **Approval Queue** — Pending analyst decisions with approve / reject / escalate
+- **Analytics** — Trend charts, typology breakdown, benchmark metrics
+- **System Info** — Architecture overview, tech stack cards, pipeline stage visualiser
+
+### Design System
+| Token | Value |
+|---|---|
+| Primary BG | `#02120a` (Deep Forest) |
+| Accent Emerald | `#10b981` |
+| Accent Gold | `#f59e0b` |
+| Accent Coral | `#f43f5e` |
+| Card style | Glassmorphism, 20px radius |
+| Font | Inter + JetBrains Mono |
+
+### Running the Frontend
+```bash
+# From the fraud-investigation-agent/ directory:
+python -m http.server 8000 --directory frontend
+# Open http://localhost:8000
+```
+
+---
+
 ## 📋 5 Fraud Typologies
 
 | ID      | Typology                    | Key Signal                        | Action            |
@@ -57,6 +93,8 @@
 | TYP-003 | Bust-Out                    | Credit burst + address change     | ACCOUNT_HOLD      |
 | TYP-004 | Synthetic Identity          | WCC ring, shared hardware         | FILE_SAR          |
 | TYP-005 | Smurfing / Velocity         | Sub-$10k velocity burst           | FILE_SAR          |
+
+---
 
 ## 🚀 Quick Start
 
@@ -82,14 +120,13 @@ python data/generate_benchmark.py
 
 ### 4. Run the Dashboard
 
-**Option A: New Interactive Web Frontend (HTML / CSS / JS)**
+**Option A: Vision UI Web Frontend (Recommended)**
 ```bash
-# Serve the frontend on port 8000
 python -m http.server 8000 --directory frontend
-# Then open http://localhost:8000 in your browser
+# Open http://localhost:8000
 ```
 
-**Option B: Streamlit Python Dashboard**
+**Option B: Streamlit Python Dashboard (legacy)**
 ```bash
 streamlit run ui/app.py
 ```
@@ -106,41 +143,49 @@ python eval/run_benchmark.py --verbose
 
 ```
 fraud-investigation-agent/
+├── frontend/                        # ★ Vision UI Web Dashboard
+│   ├── index.html                   #   Single-page app shell + sidebar
+│   ├── styles.css                   #   Design system (Vision UI tokens, glassmorphism)
+│   ├── app.js                       #   Page router + rendering logic + mock data
+│   └── assets/
+│       └── logo.jpg                 #   HHGOA logo
 ├── config/
-│   ├── settings.py              # All config with env var overrides
-│   └── fraud_policies.json      # 5 typologies, authorization matrix, SAR rules
+│   ├── settings.py                  # All config with env var overrides
+│   └── fraud_policies.json          # 5 typologies, authorization matrix, SAR rules
 ├── gsql/
-│   ├── schema.gsql              # Full TigerGraph schema (8 vertex types, 9 edge types)
+│   ├── schema.gsql                  # Full TigerGraph schema (8 vertex types, 9 edge types)
 │   ├── queries/
 │   │   ├── detect_shared_entities.gsql
 │   │   ├── trace_fund_velocity.gsql
 │   │   ├── fraud_ring_detection.gsql  (WCC label propagation)
 │   │   └── find_similar_cases.gsql
-│   └── setup_graph.sh           # Bootstrap script for TigerGraph
+│   └── setup_graph.sh               # Bootstrap script for TigerGraph
 ├── data/
-│   ├── ingest_ieee.py           # CSV loader + synthetic data generator
-│   ├── generate_benchmark.py    # 20 test case generator
-│   └── benchmark_cases/         # HHG-001.json ... HHG-020.json
+│   ├── ingest_ieee.py               # CSV loader + synthetic data generator
+│   ├── generate_benchmark.py        # 20 test case generator
+│   └── benchmark_cases/             # HHG-001.json ... HHG-020.json
 ├── graph/
-│   ├── tigergraph_client.py     # pyTigerGraph wrapper + NetworkX mock
-│   └── mcp_server.py            # FastAPI MCP adapter (port 8765)
+│   ├── tigergraph_client.py         # pyTigerGraph wrapper + NetworkX mock
+│   └── mcp_server.py                # FastAPI MCP adapter (port 8765)
 ├── rag/
-│   ├── graph_rag.py             # Hybrid retrieval: GSQL + ChromaDB
-│   └── memory_store.py          # Case memory read/write (ChromaDB)
+│   ├── graph_rag.py                 # Hybrid retrieval: GSQL + ChromaDB
+│   └── memory_store.py              # Case memory read/write (ChromaDB)
 ├── agent/
-│   ├── state.py                 # Pydantic models + LangGraph TypedDict
-│   ├── workflow.py              # 8-stage LangGraph state machine
-│   ├── tools.py                 # 8 mock external action tools
-│   ├── policy_engine.py         # NBA decision matrix, SAR determination
-│   └── sar_generator.py         # FinCEN-compliant SAR draft generator
+│   ├── state.py                     # Pydantic models + LangGraph TypedDict
+│   ├── workflow.py                  # 8-stage LangGraph state machine
+│   ├── tools.py                     # 8 mock external action tools
+│   ├── policy_engine.py             # NBA decision matrix, SAR determination
+│   └── sar_generator.py             # FinCEN-compliant SAR draft generator
 ├── eval/
-│   └── run_benchmark.py         # Automated 20-case evaluation runner
+│   └── run_benchmark.py             # Automated 20-case evaluation runner
 ├── ui/
-│   └── app.py                   # Streamlit analyst dashboard (6 pages)
+│   └── app.py                       # Streamlit analyst dashboard (legacy)
 ├── .env.example
 ├── requirements.txt
 └── README.md
 ```
+
+---
 
 ## 🔌 TigerGraph Setup (Optional — skip for demo mode)
 
@@ -155,6 +200,8 @@ python data/ingest_ieee.py --synthetic --num-accounts 5000
 uvicorn graph.mcp_server:app --host 0.0.0.0 --port 8765
 ```
 
+---
+
 ## 🧠 Agent Lifecycle (8 Stages)
 
 ```
@@ -165,6 +212,8 @@ uvicorn graph.mcp_server:app --host 0.0.0.0 --port 8765
                                ──> [SAR & Explainability]
                                ──> [Update Case Memory in Graph]
 ```
+
+---
 
 ## 📊 Benchmark Output Format
 
@@ -200,18 +249,23 @@ Each case produces `eval/results/CASE_2026_XXX_result.json`:
 }
 ```
 
+---
+
 ## 🔧 Tech Stack
 
-| Layer         | Technology                           |
-|---------------|--------------------------------------|
-| Graph DB      | TigerGraph (GSQL, WCC, PageRank)     |
-| Agent         | LangGraph 0.2+ / Python 3.11         |
-| LLM           | OpenAI GPT-4o / Anthropic / Gemini   |
-| Vector Store  | ChromaDB                             |
-| GraphRAG      | GSQL + ChromaDB Hybrid               |
-| MCP Adapter   | FastAPI + uvicorn                    |
-| Dashboard     | Streamlit + Plotly + Pyvis           |
-| Dataset       | IEEE-CIS Fraud Detection (synthetic) |
+| Layer         | Technology                                |
+|---------------|-------------------------------------------|
+| Graph DB      | TigerGraph (GSQL, WCC, PageRank)          |
+| Agent         | LangGraph 0.2+ / Python 3.11              |
+| LLM           | OpenAI GPT-4o / Anthropic / Gemini        |
+| Vector Store  | ChromaDB                                  |
+| GraphRAG      | GSQL + ChromaDB Hybrid                    |
+| MCP Adapter   | FastAPI + uvicorn                         |
+| **Dashboard** | **Vision UI — HTML / CSS / JS (primary)** |
+| Dashboard     | Streamlit + Plotly + Pyvis (legacy)       |
+| Dataset       | IEEE-CIS Fraud Detection (synthetic)      |
+
+---
 
 ## 📝 License
 

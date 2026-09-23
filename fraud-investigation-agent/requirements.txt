@@ -2,8 +2,6 @@
 langgraph>=0.2.0
 langchain>=0.3.0
 langchain-core>=0.3.0
-langchain-openai>=0.2.0
-langchain-anthropic>=0.2.0
 langchain-google-genai>=2.0.0
 
 # ─── Graph Database ────────────────────────────────────────────────────────────
@@ -11,6 +9,10 @@ pyTigerGraph>=1.0.0
 
 # ─── Vector Store & RAG ────────────────────────────────────────────────────────
 chromadb>=0.5.0
+sentence-transformers>=3.0.0
+
+# ─── LLM Fallback ──────────────────────────────────────────────────────────────
+groq>=0.11.0
 
 # ─── API & Serving ─────────────────────────────────────────────────────────────
 fastapi>=0.115.0

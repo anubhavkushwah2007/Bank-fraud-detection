@@ -1,0 +1,16 @@
+# Environment / secrets
+.env
+
+# Virtual environment
+/bank/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Vector store / generated data
+data/chroma_db/
+
+# OS junk
+.DS_Store
+data/*.csv

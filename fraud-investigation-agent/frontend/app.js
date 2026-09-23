@@ -363,6 +363,9 @@ function generateMockAudit() {
 function renderHomePage() {
     renderCaseList();
     renderTypologyChart();
+    renderTrendsChart();
+    renderGauges();
+    renderTimeline();
     animateKPIValues();
 }
 
@@ -374,27 +377,43 @@ function renderCaseList() {
         const badge = riskBadge(c.fraud_prob);
         const typColor = TYPOLOGY_COLORS[c.typology] || '#94a3b8';
         const statusIcon = { OPEN: '🟡', IN_REVIEW: '🔵', ESCALATED: '🔴' }[c.status] || '⚪';
-        const gradEnd = c.fraud_prob >= 0.85 ? '#ef4444' : c.fraud_prob >= 0.70 ? '#f59e0b' : '#0ea5e9';
+        const gradEnd = c.fraud_prob >= 0.85 ? '#ef4444' : c.fraud_prob >= 0.70 ? '#f59e0b' : '#34d399';
+        const pct = Math.round(c.fraud_prob * 100);
 
         return `
-        <div class="case-row" style="animation-delay: ${i * 0.08}s" onclick="navigateTo('caseviewer')">
-            <div class="case-row-top">
-                <div>
-                    <span class="case-id">${c.case_id}</span>
+        <tr onclick="navigateTo('caseviewer')" style="animation: caseSlide 0.4s ease forwards; animation-delay: ${i * 0.05}s;" title="Click to inspect case ${c.case_id}">
+            <td>
+                <div style="display:flex; flex-direction:column;">
+                    <span style="font-weight:700; color:#ffffff; font-family:'JetBrains Mono',monospace; font-size:0.84rem;">${c.case_id}</span>
+                    <span style="font-size:0.7rem; color:#6ee7b7; font-family:'JetBrains Mono',monospace;">${c.account_id}</span>
+                </div>
+            </td>
+            <td>
+                <span style="display:inline-flex; align-items:center; gap:6px; font-weight:600; font-size:0.75rem; color:${typColor};">
+                    <span style="width:7px; height:7px; border-radius:50%; background:${typColor}; box-shadow:0 0 8px ${typColor};"></span>
+                    ${c.typology.replace(/_/g, ' ')}
+                </span>
+            </td>
+            <td>
+                <span style="font-weight:700; font-family:'JetBrains Mono',monospace; color:#ffffff; font-size:0.84rem;">
+                    $${c.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                </span>
+            </td>
+            <td style="min-width:140px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <div style="flex:1; height:6px; background:rgba(3,20,12,0.85); border-radius:999px; overflow:hidden; border:1px solid rgba(52,211,153,0.15);">
+                        <div style="height:100%; width:${pct}%; background:linear-gradient(90deg, #10b981, ${gradEnd}); border-radius:999px; transition: width 0.8s ease;"></div>
+                    </div>
+                    <span style="font-size:0.72rem; font-weight:700; font-family:'JetBrains Mono',monospace; color:#ffffff;">${pct}%</span>
+                </div>
+            </td>
+            <td>
+                <div style="display:flex; align-items:center; gap:6px;">
+                    <span style="font-size:0.72rem; color:#a7f3d0; font-weight:600;">${statusIcon} ${c.status}</span>
                     ${badge}
                 </div>
-                <span class="case-amount">$${c.amount.toLocaleString()}</span>
-            </div>
-            <div class="case-row-meta">
-                <span class="case-typology" style="color: ${typColor}">◆ ${c.typology.replace(/_/g, ' ')}</span>
-                <span class="case-account">Acc: ${c.account_id}</span>
-                <span class="case-status">${statusIcon} ${c.status}</span>
-            </div>
-            <div class="case-progress">
-                <div class="case-progress-fill" style="width: ${c.fraud_prob * 100}%; background: linear-gradient(90deg, #0ea5e9, ${gradEnd});"></div>
-            </div>
-            <span class="case-prob-text">${(c.fraud_prob * 100).toFixed(0)}% fraud probability</span>
-        </div>`;
+            </td>
+        </tr>`;
     }).join('');
 }
 
@@ -439,6 +458,251 @@ function animateCounter(id, from, to, duration) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
+// CIRCULAR PROGRESS GAUGES (VISION UI PATTERN)
+// ═══════════════════════════════════════════════════════════════════════
+
+function renderGauges() {
+    // 1. Detection Accuracy (SatisfactionRate pattern)
+    // Circumference for r=64 is 2 * PI * 64 = 402.12
+    const accCircle = document.getElementById('gaugeAccuracyCircle');
+    const accVal = document.getElementById('gaugeAccuracyVal');
+    if (accCircle) {
+        setTimeout(() => {
+            // 94.8% -> offset = 402.12 * (1 - 0.948) = 20.91
+            accCircle.style.strokeDashoffset = '20.91';
+        }, 150);
+    }
+    if (accVal) {
+        let val = 0;
+        const target = 94.8;
+        const timer = setInterval(() => {
+            val += 2.4;
+            if (val >= target) {
+                val = target;
+                clearInterval(timer);
+            }
+            accVal.textContent = `${val.toFixed(1)}%`;
+        }, 25);
+    }
+
+    // 2. Threat Mitigation Index (ReferralTracking pattern)
+    // Circumference for r=50 is 2 * PI * 50 = 314.16
+    const threatCircle = document.getElementById('gaugeThreatCircle');
+    const threatVal = document.getElementById('gaugeThreatVal');
+    if (threatCircle) {
+        setTimeout(() => {
+            // 8.9 / 10 = 89% -> offset = 314.16 * (1 - 0.89) = 34.56
+            threatCircle.style.strokeDashoffset = '34.56';
+        }, 200);
+    }
+    if (threatVal) {
+        let val = 0;
+        const target = 8.9;
+        const timer = setInterval(() => {
+            val += 0.25;
+            if (val >= target) {
+                val = target;
+                clearInterval(timer);
+            }
+            threatVal.textContent = val.toFixed(1);
+        }, 30);
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// INVESTIGATION TRENDS CHART (VISION UI SALES OVERVIEW PATTERN)
+// ═══════════════════════════════════════════════════════════════════════
+
+function renderTrendsChart() {
+    const canvas = document.getElementById('trendsCanvas');
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    const width = rect.width > 0 ? rect.width : 500;
+    const height = 220;
+
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+    canvas.style.width = width + 'px';
+    canvas.style.height = height + 'px';
+    ctx.scale(dpr, dpr);
+
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const anomalyValues = [14, 21, 18, 29, 36, 25, 42];
+    const autoResolved = [12, 19, 17, 26, 33, 23, 39];
+
+    const padding = { top: 30, right: 25, bottom: 35, left: 35 };
+    const chartW = width - padding.left - padding.right;
+    const chartH = height - padding.top - padding.bottom;
+    const maxVal = 50;
+
+    let animProgress = 0;
+    function draw() {
+        animProgress = Math.min(animProgress + 0.04, 1);
+        const ease = 1 - Math.pow(1 - animProgress, 3);
+
+        ctx.clearRect(0, 0, width, height);
+
+        // Horizontal gridlines & Y labels
+        ctx.strokeStyle = 'rgba(52, 211, 153, 0.08)';
+        ctx.lineWidth = 1;
+        ctx.fillStyle = '#6ee7b7';
+        ctx.font = '500 10px JetBrains Mono';
+        ctx.textAlign = 'right';
+
+        for (let i = 0; i <= 4; i++) {
+            const y = padding.top + (chartH / 4) * i;
+            const val = Math.round(maxVal - (maxVal / 4) * i);
+            ctx.beginPath();
+            ctx.moveTo(padding.left, y);
+            ctx.lineTo(width - padding.right, y);
+            ctx.stroke();
+            ctx.fillText(val, padding.left - 8, y + 3);
+        }
+
+        // X labels
+        ctx.textAlign = 'center';
+        const stepX = chartW / (days.length - 1);
+        days.forEach((day, i) => {
+            const x = padding.left + i * stepX;
+            ctx.fillText(day, x, height - 12);
+        });
+
+        const getPt = (vals, i) => ({
+            x: padding.left + i * stepX,
+            y: padding.top + chartH - (vals[i] / maxVal) * chartH * ease
+        });
+
+        // Area gradient fill for anomaly values
+        const grad = ctx.createLinearGradient(0, padding.top, 0, padding.top + chartH);
+        grad.addColorStop(0, 'rgba(16, 185, 129, 0.35)');
+        grad.addColorStop(1, 'rgba(16, 185, 129, 0.01)');
+
+        ctx.beginPath();
+        const first = getPt(anomalyValues, 0);
+        ctx.moveTo(first.x, first.y);
+        for (let i = 1; i < days.length; i++) {
+            const p0 = getPt(anomalyValues, i - 1);
+            const p1 = getPt(anomalyValues, i);
+            const midX = (p0.x + p1.x) / 2;
+            ctx.bezierCurveTo(midX, p0.y, midX, p1.y, p1.x, p1.y);
+        }
+        ctx.lineTo(padding.left + chartW, padding.top + chartH);
+        ctx.lineTo(padding.left, padding.top + chartH);
+        ctx.closePath();
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        // Primary curve (Emerald)
+        ctx.beginPath();
+        ctx.moveTo(first.x, first.y);
+        for (let i = 1; i < days.length; i++) {
+            const p0 = getPt(anomalyValues, i - 1);
+            const p1 = getPt(anomalyValues, i);
+            const midX = (p0.x + p1.x) / 2;
+            ctx.bezierCurveTo(midX, p0.y, midX, p1.y, p1.x, p1.y);
+        }
+        ctx.strokeStyle = '#10b981';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        // Auto-resolved curve (Gold dashed)
+        const firstAuto = getPt(autoResolved, 0);
+        ctx.beginPath();
+        ctx.moveTo(firstAuto.x, firstAuto.y);
+        for (let i = 1; i < days.length; i++) {
+            const p0 = getPt(autoResolved, i - 1);
+            const p1 = getPt(autoResolved, i);
+            const midX = (p0.x + p1.x) / 2;
+            ctx.bezierCurveTo(midX, p0.y, midX, p1.y, p1.x, p1.y);
+        }
+        ctx.strokeStyle = '#ffd700';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 4]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Dots on primary curve
+        days.forEach((_, i) => {
+            const pt = getPt(anomalyValues, i);
+            ctx.beginPath();
+            ctx.arc(pt.x, pt.y, 4, 0, Math.PI * 2);
+            ctx.fillStyle = '#ffffff';
+            ctx.fill();
+            ctx.strokeStyle = '#10b981';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        });
+
+        if (animProgress < 1) requestAnimationFrame(draw);
+    }
+
+    draw();
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// TIMELINE (VISION UI ORDER OVERVIEW PATTERN)
+// ═══════════════════════════════════════════════════════════════════════
+
+function renderTimeline() {
+    const timeline = document.getElementById('agentTimeline');
+    if (!timeline) return;
+
+    const events = [
+        {
+            icon: '❄️',
+            color: '#34d399',
+            title: 'Account ACC_948201 containment executed',
+            desc: 'Post-evidence NBA triggered: Automated freeze applied',
+            time: '14 mins ago'
+        },
+        {
+            icon: '🕸️',
+            color: '#ffd700',
+            title: 'GSQL 2-Hop Subgraph Traversal verified',
+            desc: 'Found 4 accounts sharing hardware device DEV_8E2',
+            time: '38 mins ago'
+        },
+        {
+            icon: '📄',
+            color: '#f43f5e',
+            title: 'FinCEN SAR XML Narrative drafted',
+            desc: 'Case CASE_2026_007 escalated to Compliance Officer',
+            time: '1 hour ago'
+        },
+        {
+            icon: '🧠',
+            color: '#38bdf8',
+            title: 'GraphRAG ChromaDB embedding committed',
+            desc: 'Historical precedent match: Cosine similarity 0.94',
+            time: '2 hours ago'
+        },
+        {
+            icon: '🛡️',
+            color: '#c084fc',
+            title: 'Synthetic Identity Cluster quarantined',
+            desc: 'Pre-evidence step-up authentication enforced on 6 cards',
+            time: '3 hours ago'
+        }
+    ];
+
+    timeline.innerHTML = events.map(e => `
+        <div class="vui-timeline-item">
+            <div class="vui-timeline-icon" style="border-color:${e.color}; box-shadow:0 0 10px ${e.color}40;">
+                <span>${e.icon}</span>
+            </div>
+            <div class="vui-timeline-content">
+                <span class="vui-timeline-title">${e.title}</span>
+                <span style="font-size:0.72rem; color:#a7f3d0; opacity:0.88; margin-top:2px;">${e.desc}</span>
+                <span class="vui-timeline-time">${e.time}</span>
+            </div>
+        </div>
+    `).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════════
 // CHARTS (Canvas-based, no external dependencies)
 // ═══════════════════════════════════════════════════════════════════════
 
@@ -448,7 +712,7 @@ function renderTypologyChart() {
 
     const ctx = canvas.getContext('2d');
     const dpr = window.devicePixelRatio || 1;
-    const size = 220;
+    const size = 180;
     canvas.width = size * dpr;
     canvas.height = size * dpr;
     canvas.style.width = size + 'px';
@@ -469,12 +733,10 @@ function renderTypologyChart() {
 
     const cx = size / 2;
     const cy = size / 2;
-    const outerR = 90;
-    const innerR = 52;
+    const outerR = 75;
+    const innerR = 45;
 
-    let startAngle = -Math.PI / 2;
-
-    // Animate
+    // Animate donut chart
     let animProgress = 0;
     function drawChart() {
         animProgress = Math.min(animProgress + 0.03, 1);
@@ -498,56 +760,47 @@ function renderTypologyChart() {
             ctx.arc(cx, cy, outerR, angle + sliceAngle - 0.02, angle + sliceAngle + 0.02);
             ctx.arc(cx, cy, innerR, angle + sliceAngle + 0.02, angle + sliceAngle - 0.02, true);
             ctx.closePath();
-            ctx.fillStyle = '#060a13';
+            ctx.fillStyle = '#02120a';
             ctx.fill();
-
-            // Percentage text
-            if (easedProgress > 0.8 && sliceAngle > 0.3) {
-                const midAngle = angle + sliceAngle / 2;
-                const textR = (outerR + innerR) / 2;
-                const tx = cx + Math.cos(midAngle) * textR;
-                const ty = cy + Math.sin(midAngle) * textR;
-                ctx.fillStyle = '#fff';
-                ctx.font = '600 10px Inter';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(`${Math.round(values[i] / total * 100)}%`, tx, ty);
-            }
 
             angle += sliceAngle;
         });
 
         // Center text
         ctx.fillStyle = '#e2e8f0';
-        ctx.font = '700 20px JetBrains Mono';
+        ctx.font = '700 18px JetBrains Mono';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(total, cx, cy - 6);
-        ctx.fillStyle = '#94a3b8';
-        ctx.font = '500 9px Inter';
-        ctx.fillText('CASES', cx, cy + 10);
+        ctx.fillStyle = '#6ee7b7';
+        ctx.font = '600 8px Inter';
+        ctx.fillText('CASES', cx, cy + 9);
 
         if (animProgress < 1) requestAnimationFrame(drawChart);
     }
 
     drawChart();
 
-    // Legend
-    const container = document.getElementById('typologyChart');
-    let legendHtml = '<div style="display:flex; flex-wrap:wrap; gap:6px 14px; margin-top:12px; justify-content:center;">';
-    labels.forEach((l, i) => {
-        legendHtml += `<span style="display:flex; align-items:center; gap:4px; font-size:0.68rem; color:#94a3b8;">
-            <span style="width:8px; height:8px; border-radius:50%; background:${colors[i]}; flex-shrink:0;"></span>
-            ${l.replace(/_/g, ' ')}
-        </span>`;
-    });
-    legendHtml += '</div>';
-    // Only add legend once
-    if (!container.querySelector('.chart-legend-inline')) {
-        const legendDiv = document.createElement('div');
-        legendDiv.className = 'chart-legend-inline';
-        legendDiv.innerHTML = legendHtml;
-        container.appendChild(legendDiv);
+    // Populate Active Users-style Progress Bars below donut
+    const progressList = document.getElementById('typologyProgressList');
+    if (progressList) {
+        progressList.innerHTML = labels.map((l, i) => {
+            const pct = Math.round((values[i] / total) * 100);
+            const color = colors[i];
+            return `
+            <div class="vui-metric-progress-item">
+                <div class="vui-metric-top">
+                    <span class="vui-metric-name">
+                        <span style="width:7px; height:7px; border-radius:50%; background:${color}; box-shadow:0 0 6px ${color};"></span>
+                        ${l.replace(/_/g, ' ')}
+                    </span>
+                    <span class="vui-metric-val">${values[i]} cases (${pct}%)</span>
+                </div>
+                <div class="vui-progress-bar">
+                    <div class="vui-progress-fill" style="width:${pct}%; background:${color};"></div>
+                </div>
+            </div>`;
+        }).join('');
     }
 }
 

@@ -16,15 +16,15 @@
     --bg-primary: #02120a;
     --bg-secondary: #041c10;
     --bg-tertiary: #062818;
-    --bg-card: rgba(5, 34, 21, 0.72);
-    --bg-card-hover: rgba(8, 48, 29, 0.85);
-    --bg-glass: rgba(4, 28, 17, 0.65);
-    --bg-input: rgba(3, 20, 12, 0.85);
+    --bg-card: rgba(6, 38, 23, 0.78);
+    --bg-card-hover: rgba(8, 48, 29, 0.88);
+    --bg-glass: rgba(5, 32, 19, 0.72);
+    --bg-input: rgba(3, 20, 12, 0.88);
 
-    --border-default: rgba(52, 211, 153, 0.12);
-    --border-hover: rgba(245, 158, 11, 0.35);
-    --border-active: rgba(52, 211, 153, 0.55);
-    --border-glow: rgba(16, 185, 129, 0.35);
+    --border-default: rgba(52, 211, 153, 0.16);
+    --border-hover: rgba(245, 158, 11, 0.4);
+    --border-active: rgba(52, 211, 153, 0.6);
+    --border-glow: rgba(16, 185, 129, 0.4);
 
     --text-primary: #f0fdf4;
     --text-secondary: #a7f3d0;
@@ -44,15 +44,24 @@
     --accent-green: #34d399;
     --accent-red: #f87171;
     --accent-purple: #c084fc;
+    --accent-indigo: #818cf8;
 
-    /* Gradients */
+    /* Vision UI Signature Gradients (Adapted to Emerald/Forest/Gold) */
     --gradient-primary: linear-gradient(135deg, #10b981 0%, #059669 45%, #d97706 100%);
     --gradient-gold: linear-gradient(135deg, #f59e0b 0%, #fbbf24 60%, #ffd700 100%);
     --gradient-coral: linear-gradient(135deg, #f43f5e 0%, #fb923c 100%);
     --gradient-header: linear-gradient(90deg, #34d399 0%, #fbbf24 45%, #f43f5e 90%);
-    --gradient-card: linear-gradient(135deg, rgba(8, 48, 30, 0.75), rgba(4, 25, 15, 0.9));
+    --gradient-card: linear-gradient(127.09deg, rgba(6, 40, 24, 0.94) 19.41%, rgba(4, 26, 15, 0.65) 76.65%);
+    --gradient-card-inner: linear-gradient(127.09deg, rgba(6, 32, 20, 0.85) 12%, rgba(2, 18, 10, 0.95) 100%);
     --gradient-sidebar: linear-gradient(180deg, #02140b 0%, #042215 45%, #063320 100%);
     --gradient-bg: radial-gradient(circle at 12% 18%, rgba(16, 185, 129, 0.09) 0%, transparent 45%), radial-gradient(circle at 88% 82%, rgba(245, 158, 11, 0.07) 0%, transparent 45%), linear-gradient(135deg, #020f08 0%, #041c10 35%, #062b1a 70%, #03150c 100%);
+
+    /* Vision UI Card Tokens */
+    --vui-card-bg: linear-gradient(127.09deg, rgba(6, 40, 24, 0.94) 19.41%, rgba(4, 26, 15, 0.65) 76.65%);
+    --vui-card-inner: linear-gradient(127.09deg, rgba(6, 32, 20, 0.85) 12%, rgba(2, 18, 10, 0.95) 100%);
+    --vui-border: 1px solid rgba(52, 211, 153, 0.16);
+    --vui-border-glow: 1px solid rgba(52, 211, 153, 0.35);
+    --vui-shadow: 0 20px 27px 0 rgba(0, 0, 0, 0.38);
 
     --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
     --shadow-md: 0 6px 24px rgba(0, 0, 0, 0.5);
@@ -61,9 +70,9 @@
     --shadow-glow-gold: 0 0 28px rgba(245, 158, 11, 0.25);
     --shadow-glow-coral: 0 0 28px rgba(244, 63, 94, 0.25);
 
-    --radius-sm: 6px;
-    --radius-md: 10px;
-    --radius-lg: 14px;
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
     --radius-xl: 20px;
     --radius-full: 9999px;
 
@@ -128,6 +137,15 @@ body {
 /* Desktop collapsed: narrows to icon-only rail */
 .sidebar.collapsed {
     width: 88px;
+}
+
+/* Collapsed header: stack logo + toggler vertically, centred */
+.sidebar.collapsed .sidebar-header {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 14px 8px;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -199,6 +217,8 @@ body {
     overflow: hidden;
     transition: opacity 0.3s ease;
     white-space: nowrap;
+    /* Prevent text from sliding under the absolute-positioned toggler button */
+    padding-right: 44px;
 }
 
 .brand-title {
@@ -212,7 +232,9 @@ body {
 .brand-highlight {
     background: linear-gradient(90deg, #ffd700, #ffb703);
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
+    color: transparent;
     font-weight: 900;
 }
 
@@ -259,15 +281,19 @@ body {
     transition: transform 0.4s ease;
 }
 
-/* Desktop sidebar-toggler: absolute right corner */
+/* Desktop sidebar-toggler: absolute right edge, vertically centred */
 .sidebar-header .sidebar-toggler {
     position: absolute;
     right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
 }
 
-/* When collapsed, shift toggler down below the logo + rotate icon */
+/* When collapsed, keep the button centred inside the narrow icon rail (no overflow into main content) */
 .sidebar.collapsed .sidebar-header .sidebar-toggler {
-    transform: translate(-4px, 64px);
+    position: static;
+    transform: none;
+    margin: 0 auto;
 }
 
 .sidebar.collapsed .sidebar-header .sidebar-toggler .material-symbols-rounded {
@@ -414,6 +440,7 @@ body {
     letter-spacing: normal;
     text-transform: none;
     -webkit-font-feature-settings: 'liga';
+    font-feature-settings: 'liga';
     -webkit-font-smoothing: antialiased;
 }
 
@@ -770,7 +797,537 @@ body {
 .btn-escalate:hover { background: rgba(56, 189, 248, 0.25); }
 
 /* ═══════════════════════════════════════════════════════════════════════
-   KPI CARDS
+   VISION UI DESIGN SYSTEM CORE (ADAPTED TO HHGOA EMERALD & GOLD)
+   ═══════════════════════════════════════════════════════════════════════ */
+.vui-card {
+    background: var(--vui-card-bg);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border-radius: var(--radius-xl);
+    border: var(--vui-border);
+    box-shadow: var(--vui-shadow);
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.vui-card:hover {
+    border-color: rgba(52, 211, 153, 0.32);
+    box-shadow: 0 24px 38px 0 rgba(0, 0, 0, 0.48), 0 0 20px rgba(16, 185, 129, 0.15);
+}
+
+/* ── Vision UI MiniStatisticsCard ── */
+.vui-mini-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.vui-mini-card {
+    background: var(--vui-card-bg);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border-radius: var(--radius-xl);
+    border: var(--vui-border);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+    padding: 18px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: all 0.25s ease;
+    cursor: default;
+    position: relative;
+    overflow: hidden;
+}
+
+.vui-mini-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(52, 211, 153, 0.38);
+    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.45), 0 0 18px rgba(16, 185, 129, 0.2);
+}
+
+.vui-mini-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.vui-mini-title {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 4px;
+}
+
+.vui-mini-val-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.vui-mini-value {
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: #ffffff;
+    font-family: 'JetBrains Mono', monospace;
+    line-height: 1.1;
+}
+
+.vui-mini-delta {
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+.vui-delta-up { color: #34d399; }
+.vui-delta-down { color: #f87171; }
+.vui-delta-warn { color: #fbbf24; }
+.vui-delta-neu { color: #6ee7b7; }
+
+.vui-mini-icon-box {
+    width: 46px;
+    height: 46px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    flex-shrink: 0;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+}
+
+.vui-icon-emerald {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.45);
+    color: #ffffff;
+}
+
+.vui-icon-gold {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    box-shadow: 0 4px 14px rgba(245, 158, 11, 0.45);
+    color: #ffffff;
+}
+
+.vui-icon-coral {
+    background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);
+    box-shadow: 0 4px 14px rgba(244, 63, 94, 0.45);
+    color: #ffffff;
+}
+
+.vui-icon-teal {
+    background: linear-gradient(135deg, #14b8a6 0%, #0f766e 100%);
+    box-shadow: 0 4px 14px rgba(20, 184, 166, 0.45);
+    color: #ffffff;
+}
+
+.vui-icon-cyan {
+    background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+    box-shadow: 0 4px 14px rgba(6, 182, 212, 0.45);
+    color: #ffffff;
+}
+
+/* ── Row 2: Hero & Gauges ── */
+.vui-grid-hero {
+    display: grid;
+    grid-template-columns: 1.35fr 1fr 1.3fr;
+    gap: 20px;
+    margin-bottom: 24px;
+}
+
+.vui-welcome-card {
+    height: 340px;
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    background: radial-gradient(circle at 92% 12%, rgba(16, 185, 129, 0.28) 0%, transparent 55%),
+                radial-gradient(circle at 10% 90%, rgba(245, 158, 11, 0.16) 0%, transparent 60%),
+                linear-gradient(127.09deg, rgba(6, 42, 25, 0.96) 19.41%, rgba(3, 20, 12, 0.88) 76.65%);
+}
+
+.vui-welcome-top {
+    display: flex;
+    flex-direction: column;
+}
+
+.vui-welcome-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--accent-mint);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+}
+
+.vui-welcome-title {
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: #ffffff;
+    line-height: 1.25;
+    margin-bottom: 10px;
+    letter-spacing: -0.01em;
+}
+
+.vui-welcome-desc {
+    font-size: 0.82rem;
+    color: #a7f3d0;
+    line-height: 1.6;
+    max-width: 95%;
+    opacity: 0.9;
+}
+
+.vui-welcome-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #ffffff;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.vui-welcome-action span {
+    transition: transform 0.2s ease;
+}
+
+.vui-welcome-action:hover {
+    color: var(--accent-gold);
+}
+
+.vui-welcome-action:hover span {
+    transform: translateX(5px);
+}
+
+/* ── Circular Progress Gauges ── */
+.vui-gauge-card {
+    height: 340px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.vui-gauge-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+}
+
+.vui-gauge-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #ffffff;
+    margin-bottom: 2px;
+}
+
+.vui-gauge-subtitle {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.vui-gauge-body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    margin: 4px 0;
+}
+
+.vui-gauge-svg {
+    transform: rotate(-90deg);
+}
+
+.vui-gauge-bg {
+    fill: none;
+    stroke: rgba(52, 211, 153, 0.12);
+    stroke-width: 9;
+}
+
+.vui-gauge-fill {
+    fill: none;
+    stroke-width: 9;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.vui-gauge-center {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.vui-gauge-value {
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: #ffffff;
+    font-family: 'JetBrains Mono', monospace;
+    line-height: 1;
+}
+
+.vui-gauge-label {
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: 4px;
+}
+
+.vui-gauge-footer-pill {
+    background: rgba(3, 20, 12, 0.75);
+    border: 1px solid rgba(52, 211, 153, 0.2);
+    border-radius: 14px;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.vui-gauge-footer-item {
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+}
+
+.vui-gauge-footer-center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.vui-gauge-footer-val {
+    font-size: 0.92rem;
+    font-weight: 800;
+    color: #ffffff;
+}
+
+/* ── Row 3: Charts Grid ── */
+.vui-grid-charts {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 20px;
+    margin-bottom: 24px;
+}
+
+.vui-chart-card {
+    padding: 24px;
+    min-height: 380px;
+    display: flex;
+    flex-direction: column;
+}
+
+.vui-chart-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+.vui-chart-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #ffffff;
+    margin-bottom: 4px;
+}
+
+.vui-chart-sub {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.vui-chart-sub strong {
+    color: var(--accent-mint);
+}
+
+.vui-metric-progress-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 14px;
+}
+
+.vui-metric-progress-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.vui-metric-top {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+}
+
+.vui-metric-name {
+    color: var(--text-secondary);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.vui-metric-val {
+    color: #ffffff;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.vui-progress-bar {
+    height: 6px;
+    border-radius: 999px;
+    background: rgba(4, 25, 15, 0.9);
+    border: 1px solid rgba(52, 211, 153, 0.15);
+    overflow: hidden;
+}
+
+.vui-progress-fill {
+    height: 100%;
+    border-radius: 999px;
+    transition: width 1s ease;
+}
+
+/* ── Row 4: Tables & Timeline ── */
+.vui-grid-bottom {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 20px;
+}
+
+/* ── Vision UI Clean Projects-Style Table ── */
+.vui-table-card {
+    padding: 24px;
+    min-height: 440px;
+    display: flex;
+    flex-direction: column;
+}
+
+.vui-table-wrap {
+    overflow-x: auto;
+    margin-top: 8px;
+}
+
+.vui-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+}
+
+.vui-table th {
+    text-align: left;
+    padding: 12px 14px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: #6ee7b7;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    border-bottom: 1px solid rgba(52, 211, 153, 0.18);
+    white-space: nowrap;
+}
+
+.vui-table td {
+    padding: 14px 14px;
+    border-bottom: 1px solid rgba(52, 211, 153, 0.08);
+    color: var(--text-secondary);
+    vertical-align: middle;
+}
+
+.vui-table tbody tr {
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.vui-table tbody tr:hover {
+    background: rgba(16, 185, 129, 0.08);
+}
+
+.vui-table tbody tr:hover td {
+    color: #ffffff;
+}
+
+/* ── Vision UI OrderOverview-Style Timeline ── */
+.vui-timeline-card {
+    padding: 24px;
+    min-height: 440px;
+    display: flex;
+    flex-direction: column;
+}
+
+.vui-timeline {
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    margin-top: 16px;
+    padding-left: 6px;
+}
+
+.vui-timeline-item {
+    display: flex;
+    gap: 16px;
+    position: relative;
+    padding-bottom: 22px;
+}
+
+.vui-timeline-item:last-child {
+    padding-bottom: 0;
+}
+
+.vui-timeline-item::before {
+    content: '';
+    position: absolute;
+    left: 14px;
+    top: 28px;
+    bottom: 0;
+    width: 2px;
+    background: rgba(52, 211, 153, 0.15);
+}
+
+.vui-timeline-item:last-child::before {
+    display: none;
+}
+
+.vui-timeline-icon {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+    z-index: 2;
+    background: rgba(3, 20, 12, 0.95);
+    border: 1.5px solid rgba(52, 211, 153, 0.35);
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
+}
+
+.vui-timeline-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.vui-timeline-title {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #ffffff;
+    line-height: 1.35;
+}
+
+.vui-timeline-time {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+    margin-top: 2px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   KPI CARDS & PANELS (UPDATED TO 20PX RADIUS & VISION UI GLASS)
    ═══════════════════════════════════════════════════════════════════════ */
 .kpi-grid {
     display: grid;
@@ -784,15 +1341,17 @@ body {
 .kpi-grid-5 { grid-template-columns: repeat(5, 1fr); }
 
 .kpi-card {
-    background: var(--gradient-card);
-    border: 1px solid var(--border-default);
-    border-radius: var(--radius-lg);
+    background: var(--vui-card-bg);
+    border: var(--vui-border);
+    border-radius: var(--radius-xl);
     padding: 20px;
     text-align: center;
     transition: all var(--transition-base);
-    backdrop-filter: blur(12px);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
     position: relative;
     overflow: hidden;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
 }
 
 .kpi-card::before {
@@ -808,9 +1367,9 @@ body {
 }
 
 .kpi-card:hover {
-    transform: translateY(-3px);
-    border-color: var(--border-hover);
-    box-shadow: var(--shadow-glow-cyan);
+    transform: translateY(-2px);
+    border-color: rgba(52, 211, 153, 0.35);
+    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.45), 0 0 18px rgba(16, 185, 129, 0.2);
 }
 
 .kpi-card:hover::before {
@@ -842,7 +1401,7 @@ body {
 .kpi-value {
     font-size: 1.8rem;
     font-weight: 800;
-    color: var(--accent-cyan);
+    color: var(--accent-mint);
     line-height: 1;
     margin-bottom: 6px;
     font-family: 'JetBrains Mono', monospace;
@@ -882,9 +1441,9 @@ body {
     align-items: center;
     gap: 12px;
     padding: 12px 20px;
-    background: var(--gradient-card);
-    border: 1px solid var(--border-default);
-    border-radius: var(--radius-lg);
+    background: var(--vui-card-bg);
+    border: var(--vui-border);
+    border-radius: var(--radius-xl);
 }
 
 .kpi-inline .kpi-value {
@@ -900,23 +1459,28 @@ body {
    PANELS & GLASS EFFECT
    ═══════════════════════════════════════════════════════════════════════ */
 .glass-panel {
-    background: var(--bg-glass);
-    backdrop-filter: blur(16px);
-    border: 1px solid var(--border-default);
-    border-radius: var(--radius-lg);
+    background: var(--vui-card-bg);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: var(--vui-border);
+    border-radius: var(--radius-xl);
     padding: 24px;
+    box-shadow: var(--vui-shadow);
 }
 
 .panel {
-    background: var(--bg-card);
-    border: 1px solid var(--border-default);
-    border-radius: var(--radius-lg);
+    background: var(--vui-card-bg);
+    border: var(--vui-border);
+    border-radius: var(--radius-xl);
     padding: 20px;
-    transition: border-color var(--transition-base);
+    transition: all var(--transition-base);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    box-shadow: var(--vui-shadow);
 }
 
 .panel:hover {
-    border-color: var(--border-hover);
+    border-color: rgba(52, 211, 153, 0.32);
 }
 
 .panel-header {
@@ -946,7 +1510,7 @@ body {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
-   HOME PAGE — LIVE CASES & CHARTS
+   LEGACY HOME PAGE COMPATIBILITY & CHARTS
    ═══════════════════════════════════════════════════════════════════════ */
 .home-grid {
     display: grid;
@@ -960,7 +1524,7 @@ body {
     gap: 20px;
 }
 
-/* ── Case List ────────────────────────────────────────────────────────── */
+/* ── Case List ── */
 .case-list {
     display: flex;
     flex-direction: column;
@@ -971,8 +1535,8 @@ body {
 }
 
 .case-row {
-    background: rgba(15, 32, 53, 0.6);
-    border: 1px solid var(--border-default);
+    background: rgba(4, 25, 15, 0.75);
+    border: 1px solid rgba(52, 211, 153, 0.16);
     border-radius: var(--radius-md);
     padding: 14px 16px;
     transition: all var(--transition-base);
@@ -983,7 +1547,7 @@ body {
 
 .case-row:hover {
     border-color: var(--border-active);
-    background: rgba(20, 40, 70, 0.7);
+    background: rgba(8, 42, 26, 0.85);
     transform: translateX(4px);
 }
 
@@ -1034,7 +1598,7 @@ body {
 
 .case-progress {
     height: 4px;
-    background: rgba(15, 32, 53, 0.8);
+    background: rgba(3, 20, 12, 0.8);
     border-radius: 4px;
     overflow: hidden;
     margin-bottom: 4px;
@@ -1051,7 +1615,7 @@ body {
     color: var(--text-muted);
 }
 
-/* ── Risk Badges ──────────────────────────────────────────────────────── */
+/* ── Risk Badges ── */
 .badge {
     display: inline-block;
     padding: 2px 10px;
@@ -1062,12 +1626,12 @@ body {
     letter-spacing: 0.04em;
 }
 
-.badge-critical { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
-.badge-high     { background: rgba(251,146,60,0.15); color: #fb923c; border: 1px solid rgba(251,146,60,0.3); }
-.badge-medium   { background: rgba(250,204,21,0.15); color: #fbbf24; border: 1px solid rgba(250,204,21,0.3); }
-.badge-low      { background: rgba(34,197,94,0.15);  color: #4ade80; border: 1px solid rgba(34,197,94,0.3); }
+.badge-critical { background: rgba(239,68,68,0.18); color: #f87171; border: 1px solid rgba(239,68,68,0.35); }
+.badge-high     { background: rgba(251,146,60,0.18); color: #fb923c; border: 1px solid rgba(251,146,60,0.35); }
+.badge-medium   { background: rgba(250,204,21,0.18); color: #fbbf24; border: 1px solid rgba(250,204,21,0.35); }
+.badge-low      { background: rgba(34,197,94,0.18);  color: #4ade80; border: 1px solid rgba(34,197,94,0.35); }
 
-/* ── Quick Actions ────────────────────────────────────────────────────── */
+/* ── Quick Actions ── */
 .quick-actions {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -1080,8 +1644,8 @@ body {
     gap: 8px;
     padding: 12px 14px;
     border-radius: var(--radius-md);
-    background: rgba(14, 165, 233, 0.06);
-    border: 1px solid var(--border-default);
+    background: rgba(16, 185, 129, 0.08);
+    border: 1px solid rgba(52, 211, 153, 0.2);
     color: var(--text-primary);
     font-family: inherit;
     font-size: 0.78rem;
@@ -1091,8 +1655,8 @@ body {
 }
 
 .quick-btn:hover {
-    background: rgba(14, 165, 233, 0.12);
-    border-color: var(--border-hover);
+    background: rgba(16, 185, 129, 0.18);
+    border-color: rgba(52, 211, 153, 0.4);
     transform: translateY(-1px);
 }
 
@@ -1100,7 +1664,7 @@ body {
     font-size: 1.1rem;
 }
 
-/* ── Chart Container ──────────────────────────────────────────────────── */
+/* ── Chart Container ── */
 .chart-container {
     position: relative;
     height: 240px;
@@ -1844,6 +2408,13 @@ body {
    RESPONSIVE
    ═══════════════════════════════════════════════════════════════════════ */
 @media (max-width: 1200px) {
+    .vui-mini-grid { grid-template-columns: repeat(3, 1fr); }
+    .vui-grid-hero { grid-template-columns: 1fr; }
+    .vui-welcome-card { height: auto; min-height: 280px; }
+    .vui-gauge-card { height: auto; min-height: 320px; }
+    .vui-grid-charts { grid-template-columns: 1fr; }
+    .vui-grid-bottom { grid-template-columns: 1fr; }
+
     .kpi-grid { grid-template-columns: repeat(3, 1fr); }
     .kpi-grid-5 { grid-template-columns: repeat(3, 1fr); }
     .home-grid { grid-template-columns: 1fr; }
@@ -1851,6 +2422,8 @@ body {
 }
 
 @media (max-width: 1024px) {
+    .vui-mini-grid { grid-template-columns: repeat(2, 1fr); }
+
     /* On mobile the sidebar collapses to a 56px top bar */
     .sidebar {
         height: 56px;
@@ -1948,6 +2521,8 @@ body {
 }
 
 @media (max-width: 600px) {
+    .vui-mini-grid { grid-template-columns: 1fr; }
+
     .kpi-grid,
     .kpi-grid-3,
     .kpi-grid-4,
@@ -2078,7 +2653,9 @@ body {
     line-height: 1.15;
     background: linear-gradient(90deg, #ffffff 0%, #a7f3d0 40%, #ffd700 80%);
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
+    color: transparent;
     letter-spacing: -0.02em;
     margin-bottom: 12px;
 }
