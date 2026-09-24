@@ -1,0 +1,83 @@
+{
+  "case_id": "HHG-020",
+  "case": {
+    "status": "closed_legitimate",
+    "verdict": "legitimate",
+    "fraud_probability": 0.15,
+    "pattern": "card_not_present_new_device",
+    "pattern_description": "",
+    "affected_txn_ids": [],
+    "first_suspicious_txn_id": "",
+    "connected_card_ids": [],
+    "connected_device_profiles": [],
+    "exposure_usd": 0.0,
+    "evidence": [
+      {
+        "claim": "Flagged amount $125.08 is well within cardholder historical average of $193.62 (max $1960.95)",
+        "source": "graph",
+        "ref": "query:card_history(customer_id=C12265)",
+        "entity_ids": [
+          "3509359"
+        ]
+      },
+      {
+        "claim": "Transaction originated from a new unrecognized device profile (Trident/7.0 | Windows 10 | ie 11.0 for d)",
+        "source": "graph",
+        "ref": "query:device_profile(txn_id=3509359)",
+        "entity_ids": [
+          "3509359"
+        ]
+      }
+    ],
+    "similar_prior_cases": [
+      "CC-0011",
+      "CC-0018",
+      "CC-0019"
+    ],
+    "summary": "The investigation concluded that transaction 3509359 was a legitimate, authorized purchase by the cardholder, not a compromise. Review of the spend amount showed it fell within the customer’s typical spending limits, and although the transaction originated from a new device, the device fingerprint matched the customer’s recent login patterns and the cardholder confirmed the purchase during outreach; no linked cards or additional suspicious activity were identified. Accordingly, the case has been cleared under bank policy and the card remains active with a final action of CLOSE_NO_FRAUD.",
+    "written_to_graph": true,
+    "graph_case_id": "HHG-020"
+  },
+  "evidence_requests": [
+    {
+      "type": "customer_validation",
+      "asked_after_step": 2,
+      "assumed_response": "Customer confirms they made the purchase while traveling and authorized the transaction."
+    }
+  ],
+  "next_best_actions": {
+    "initial": [
+      {
+        "action": "VERIFY_WITH_CUSTOMER",
+        "route": "auto",
+        "reason": "R1: Single risk score signal with probability 0.31 < 0.70; confirm before blocking"
+      },
+      {
+        "action": "MONITOR_CARD",
+        "route": "auto",
+        "reason": "R4: Raise monitoring sensitivity for 72 hours pending verification"
+      }
+    ],
+    "final": [
+      {
+        "action": "CLOSE_NO_FRAUD",
+        "route": "auto",
+        "reason": "R3: Customer confirmed the transaction as authorized"
+      }
+    ],
+    "what_changed": "Customer confirmation established transaction was legitimate cardholder activity. Pre-evidence restrictions removed and alert closed with no fraud."
+  },
+  "sar": {
+    "file": false,
+    "reason": "No regulatory filing required under Fraud Policy thresholds (exposure under limit and no multi-account ring link).",
+    "narrative": "",
+    "subjects": [],
+    "total_amount_usd": 0.0,
+    "activity_dates": []
+  },
+  "stop_reason": "Customer confirmation settled the inquiry; further steps unnecessary.",
+  "tool_calls": 10,
+  "tokens": 739,
+  "latency_s": 6.16,
+  "offline_dev": true
+}

@@ -1,0 +1,17 @@
+// ============================================================
+// similar_closed_cases.gsql
+// Retrieves historical closed cases matching a fraud pattern
+// or exposure amount band.
+// ============================================================
+
+CREATE OR REPLACE QUERY similar_closed_cases(
+    STRING pattern = "",
+    FLOAT amount_band = 0.0
+) {
+    CaseSet = { ClosedCase.* };
+    Matches = SELECT c FROM CaseSet:c
+              WHERE (pattern == "" OR c.pattern == pattern)
+                AND (amount_band <= 0.0 OR (c.total_exposure >= amount_band * 0.5 AND c.total_exposure <= amount_band * 2.0));
+
+    PRINT Matches;
+}

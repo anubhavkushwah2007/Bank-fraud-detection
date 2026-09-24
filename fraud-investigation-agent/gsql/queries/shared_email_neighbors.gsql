@@ -1,0 +1,18 @@
+// ============================================================
+// shared_email_neighbors.gsql
+// Retrieves transaction activity and cards associated with an
+// email domain (P_emaildomain).
+// ============================================================
+
+CREATE OR REPLACE QUERY shared_email_neighbors(
+    STRING email_domain,
+    INT window_days = 30
+) {
+    DomainSet = { EmailDomain.* };
+    StartDomain = SELECT d FROM DomainSet:d WHERE d.domain == email_domain;
+
+    Txns = SELECT t FROM StartDomain:d -(<PURCHASER_EMAIL:e)- Transaction:t;
+    Cards = SELECT c FROM Txns:t -(<MADE:e)- Card:c;
+
+    PRINT StartDomain, Txns.size() AS txn_count, Cards.size() AS card_count, Txns, Cards;
+}

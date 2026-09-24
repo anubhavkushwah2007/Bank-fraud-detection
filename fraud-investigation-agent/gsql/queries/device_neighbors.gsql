@@ -1,0 +1,18 @@
+// ============================================================
+// device_neighbors.gsql
+// Finds all transactions, cards, and customer accounts linked
+// to a given DeviceProfile.
+// ============================================================
+
+CREATE OR REPLACE QUERY device_neighbors(
+    STRING device_id
+) {
+    DevSet = { DeviceProfile.* };
+    StartDev = SELECT d FROM DevSet:d WHERE d.device_id == device_id;
+
+    Txns = SELECT t FROM StartDev:d -(<FROM_DEVICE:e)- Transaction:t;
+    Cards = SELECT c FROM Txns:t -(<MADE:e)- Card:c;
+    Custs = SELECT u FROM Cards:c -(<OWNS:e)- Customer:u;
+
+    PRINT StartDev, Txns, Cards, Custs;
+}

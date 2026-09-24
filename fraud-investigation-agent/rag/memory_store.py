@@ -33,7 +33,8 @@ class CaseMemoryStore:
     COLLECTION_NAME = "fraud_case_memory"
 
     def __init__(self, persist_dir: Optional[str] = None) -> None:
-        self.base_dir = Path(__file__).resolve().parent.parent / "data"
+        from config import settings
+        self.settings = settings
         self._df_closed: Optional[pd.DataFrame] = None
         self._cases_by_pattern: Dict[str, List[Dict[str, Any]]] = {}
         self._cases_by_id: Dict[str, Dict[str, Any]] = {}
@@ -43,7 +44,7 @@ class CaseMemoryStore:
     def _load_closed_cases(self) -> None:
         """Load and index all 5,565 closed cases from CSV."""
         try:
-            csv_path = self.base_dir / "closed_cases_history.csv"
+            csv_path = self.settings.CLOSED_CASES_CSV
             if csv_path.exists():
                 self._df_closed = pd.read_csv(csv_path)
                 for _, r in self._df_closed.iterrows():

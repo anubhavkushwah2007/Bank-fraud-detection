@@ -1,0 +1,82 @@
+{
+  "case_id": "HHG-004",
+  "case": {
+    "status": "closed_fraud",
+    "verdict": "fraud",
+    "fraud_probability": 0.8699,
+    "pattern": "card_not_present_new_device",
+    "pattern_description": "",
+    "affected_txn_ids": [
+      "3583227"
+    ],
+    "first_suspicious_txn_id": "3583227",
+    "connected_card_ids": [],
+    "connected_device_profiles": [],
+    "exposure_usd": 128.33,
+    "evidence": [
+      {
+        "claim": "Transaction originated from a new unrecognized device profile (firefox 47.0)",
+        "source": "graph",
+        "ref": "query:device_profile(txn_id=3583227)",
+        "entity_ids": [
+          "3583227"
+        ]
+      }
+    ],
+    "similar_prior_cases": [
+      "CC-0011",
+      "CC-0018",
+      "CC-0019"
+    ],
+    "summary": "The investigation concludes that transaction 3583227 was a confirmed compromise, not an authorized cardholder spend, resulting in a fraud verdict for Card C08106‑K1 with a total exposure of $128.33. Evidence supporting this determination includes the card‑not‑present purchase made from a new, unrecognized device, the absence of any linked or connected cards, and the isolated nature of the $128.33 transaction matching the “card_not_present_new_device” fraud pattern. Accordingly, the card has been blocked for re‑issuance and a fraud case has been created per bank policy.",
+    "written_to_graph": true,
+    "graph_case_id": "HHG-004"
+  },
+  "evidence_requests": [
+    {
+      "type": "customer_validation",
+      "asked_after_step": 2,
+      "assumed_response": "Customer states they did not authorize this charge and were in physical possession of their card."
+    }
+  ],
+  "next_best_actions": {
+    "initial": [
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "R2/R7: Customer disputed charge; internal case opened for verification"
+      },
+      {
+        "action": "VERIFY_WITH_CUSTOMER",
+        "route": "auto",
+        "reason": "R1: Verify cardholder possession and details before irreversible block"
+      }
+    ],
+    "final": [
+      {
+        "action": "BLOCK_CARD",
+        "route": "L1",
+        "reason": "R2: Customer denied transaction; exposure $128.33 (L1 <= $2,500)"
+      },
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "R2: Customer denied transaction; open case and record to graph"
+      }
+    ],
+    "what_changed": "Customer denial confirmed unauthorized transaction, elevating fraud probability to 0.87. Pre-evidence monitoring escalated to immediate BLOCK_CARD and CREATE_CASE under Policy R2. Because exposure ($128.33) is under $1,000 and no cross-card compromise linkage exists, the matter is resolved as case-only without external regulatory SAR filing."
+  },
+  "sar": {
+    "file": false,
+    "reason": "No regulatory filing required under Fraud Policy thresholds (exposure under limit and no multi-account ring link).",
+    "narrative": "",
+    "subjects": [],
+    "total_amount_usd": 0.0,
+    "activity_dates": []
+  },
+  "stop_reason": "Definitive evidence of compromise obtained; protective actions and report executed.",
+  "tool_calls": 10,
+  "tokens": 724,
+  "latency_s": 4.18,
+  "offline_dev": true
+}

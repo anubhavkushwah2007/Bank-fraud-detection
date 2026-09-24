@@ -1,76 +1,95 @@
 #!/usr/bin/env bash
 # =============================================================
-# setup_graph.sh  — Bootstrap TigerGraph FraudGraph
+# setup_graph.sh — Bootstrap TigerGraph Schema & GSQL Queries
 # Usage: bash gsql/setup_graph.sh
-# Requires: GSQL CLI on PATH (TigerGraph installation)
+# Notes: Uses TG_GRAPHNAME / TG_GRAPH_NAME without dropping graphs
 # =============================================================
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-GRAPH_NAME="FraudGraph"
-TG_HOST="${TIGERGRAPH_HOST:-localhost}"
-TG_USER="${TIGERGRAPH_USERNAME:-tigergraph}"
-TG_PASS="${TIGERGRAPH_PASSWORD:-tigergraph}"
+BASE_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+# Load .env if present
+if [ -f "${BASE_DIR}/.env" ]; then
+    set -a
+    source "${BASE_DIR}/.env"
+    set +a
+fi
+
+GRAPH_NAME="${TG_GRAPHNAME:-${TG_GRAPH_NAME:-${TIGERGRAPH_GRAPH:-Transaction_Fraud}}}"
+TG_HOST="${TG_HOST:-${TIGERGRAPH_HOST:-localhost}}"
+TG_USER="${TG_USERNAME:-${TIGERGRAPH_USERNAME:-tigergraph}}"
+TG_PASS="${TG_PASSWORD:-${TIGERGRAPH_PASSWORD:-tigergraph}}"
+TG_SECRET="${TG_SECRET:-${TIGERGRAPH_SECRET:-}}"
 
 echo "============================================================"
-echo "  HHGOA Fraud Graph — TigerGraph Bootstrap"
-echo "  Host: ${TG_HOST}   Graph: ${GRAPH_NAME}"
+echo "  HHGOA Real Fraud Graph — TigerGraph Bootstrap"
+echo "  Host:  ${TG_HOST}"
+echo "  Graph: ${GRAPH_NAME}"
 echo "============================================================"
 
-# ── Helper: run a GSQL file ────────────────────────────────────────────────────
-run_gsql() {
-    local file="$1"
-    echo "  → Running: $(basename "${file}")"
-    gsql -u "${TG_USER}" -p "${TG_PASS}" -f "${file}"
+# Helper: run GSQL command
+run_gsql_cmd() {
+    local cmd="$1"
+    if [ -n "${TG_SECRET}" ]; then
+        gsql -s "${TG_SECRET}" "${cmd}"
+    elif [ -n "${TG_PASS}" ]; then
+        gsql -u "${TG_USER}" -p "${TG_PASS}" "${cmd}"
+    else
+        gsql "${cmd}"
+    fi
 }
 
-# ── 1. Create Graph & Schema ───────────────────────────────────────────────────
-echo ""
-echo "[1/4] Creating graph schema..."
-run_gsql "${SCRIPT_DIR}/schema.gsql"
+# Helper: run GSQL file
+run_gsql_file() {
+    local file="$1"
+    echo "  → Running: $(basename "${file}")"
+    if [ -n "${TG_SECRET}" ]; then
+        gsql -s "${TG_SECRET}" "${file}"
+    elif [ -n "${TG_PASS}" ]; then
+        gsql -u "${TG_USER}" -p "${TG_PASS}" "${file}"
+    else
+        gsql "${file}"
+    fi
+}
 
-# ── 2. Compile GSQL Queries ───────────────────────────────────────────────────
 echo ""
-echo "[2/4] Compiling GSQL queries..."
-for qfile in "${SCRIPT_DIR}/queries/"*.gsql; do
-    run_gsql "${qfile}"
+echo "[1/3] Ensuring Graph exists: ${GRAPH_NAME}..."
+run_gsql_cmd "CREATE GRAPH ${GRAPH_NAME}()" || true
+
+echo ""
+echo "[2/3] Applying Schema..."
+TMP_SCHEMA="$(mktemp)"
+echo "USE GRAPH ${GRAPH_NAME}" > "${TMP_SCHEMA}"
+cat "${SCRIPT_DIR}/schema.gsql" >> "${TMP_SCHEMA}"
+run_gsql_file "${TMP_SCHEMA}"
+rm -f "${TMP_SCHEMA}"
+
+echo ""
+echo "[3/3] Compiling and Installing Queries..."
+QUERIES=(
+    "${SCRIPT_DIR}/queries/card_window.gsql"
+    "${SCRIPT_DIR}/queries/device_neighbors.gsql"
+    "${SCRIPT_DIR}/queries/region_neighbors.gsql"
+    "${SCRIPT_DIR}/queries/shared_email_neighbors.gsql"
+    "${SCRIPT_DIR}/queries/customer_history.gsql"
+    "${SCRIPT_DIR}/queries/similar_closed_cases.gsql"
+)
+
+for q in "${QUERIES[@]}"; do
+    if [ -f "${q}" ]; then
+        echo "  → Compiling: $(basename "${q}")"
+        TMP_Q="$(mktemp)"
+        echo "USE GRAPH ${GRAPH_NAME}" > "${TMP_Q}"
+        cat "${q}" >> "${TMP_Q}"
+        run_gsql_file "${TMP_Q}"
+        rm -f "${TMP_Q}"
+    fi
 done
 
-# ── 3. Seed Fraud Patterns ────────────────────────────────────────────────────
-echo ""
-echo "[3/4] Seeding Fraud_Pattern vertices..."
-gsql -u "${TG_USER}" -p "${TG_PASS}" << 'EOF'
-USE GRAPH FraudGraph
-
-BEGIN
-UPSERT VERTEX Fraud_Pattern VALUES("TYP-001", "Card-Not-Present Fraud Ring",
-  "Organized rings testing stolen card credentials", '["multiple_accounts_same_device","rapid_cross_merchant_testing"]',
-  "Account -> Device <- Account", "FinCEN FIN-2012-A010", true)
-
-UPSERT VERTEX Fraud_Pattern VALUES("TYP-002", "Account Takeover (ATO)",
-  "Unauthorized access via credential stuffing or phishing", '["new_device_first_transaction","ip_country_mismatch"]',
-  "Account -> NewDevice AND IP_Address (foreign)", "FFIEC IT 2023", true)
-
-UPSERT VERTEX Fraud_Pattern VALUES("TYP-003", "Bust-Out Fraud",
-  "Fraudster builds credit then maxes out", '["sudden_credit_limit_usage","address_change_prior_30_days"]',
-  "Account -> high_value_transactions BURST within 48h", "FinCEN FIN-2015-A001", true)
-
-UPSERT VERTEX Fraud_Pattern VALUES("TYP-004", "Synthetic Identity Fraud",
-  "Fictitious identity from combined real PII fragments", '["ssn_dob_mismatch","shared_device_across_unrelated_accounts"]',
-  "WCC: >5 Accounts sharing Device AND IP", "FTC 2022", true)
-
-UPSERT VERTEX Fraud_Pattern VALUES("TYP-005", "Smurfing / Structuring",
-  "Breaking large transfers below CTR thresholds", '["transactions_just_below_ctr_limit","high_fan_out_ratio"]',
-  "Account -> [10+ Transactions <$10k] -> multiple Accounts", "31 U.S.C. 5324", true)
-END
-
-EOF
-
-# ── 4. Verify installation ────────────────────────────────────────────────────
-echo ""
-echo "[4/4] Verifying installation..."
-gsql -u "${TG_USER}" -p "${TG_PASS}" "USE GRAPH ${GRAPH_NAME}; SHOW VERTEX *; SHOW EDGE *; SHOW QUERY *;"
+echo "  → Installing all queries on ${GRAPH_NAME}..."
+run_gsql_cmd "USE GRAPH ${GRAPH_NAME}; INSTALL QUERY card_window, device_neighbors, region_neighbors, shared_email_neighbors, customer_history, similar_closed_cases;"
 
 echo ""
-echo "✅  FraudGraph bootstrap complete!"
-echo "    Run data ingestion next: python data/ingest_ieee.py"
+echo "✅ Schema and queries bootstrap complete!"
+echo "   Next: python data/load_all.py"

@@ -1,0 +1,16 @@
+// ============================================================
+// customer_history.gsql
+// Retrieves all cards owned by a customer and all transactions
+// executed on those cards.
+// ============================================================
+
+CREATE OR REPLACE QUERY customer_history(
+    STRING customer_id
+) {
+    CustSet = { Customer.* };
+    StartCust = SELECT c FROM CustSet:c WHERE c.customer_id == customer_id;
+    Cards = SELECT cd FROM StartCust:c -(OWNS:e)-> Card:cd;
+    Txns = SELECT t FROM Cards:cd -(MADE:e)-> Transaction:t;
+
+    PRINT StartCust, Cards, Txns;
+}

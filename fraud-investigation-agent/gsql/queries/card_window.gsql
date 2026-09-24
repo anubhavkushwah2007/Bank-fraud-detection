@@ -1,0 +1,19 @@
+// ============================================================
+// card_window.gsql
+// Retrieves all transactions made by a card within a time window.
+// ============================================================
+
+CREATE OR REPLACE QUERY card_window(
+    STRING card_id,
+    STRING start_ts = "",
+    STRING end_ts = ""
+) {
+    CardSet = { Card.* };
+    StartCard = SELECT c FROM CardSet:c WHERE c.card_id == card_id;
+
+    Txns = SELECT t FROM StartCard:c -(MADE:e)-> Transaction:t
+           WHERE (start_ts == "" OR t.ts >= to_datetime(start_ts))
+             AND (end_ts == "" OR t.ts <= to_datetime(end_ts));
+
+    PRINT StartCard, Txns;
+}

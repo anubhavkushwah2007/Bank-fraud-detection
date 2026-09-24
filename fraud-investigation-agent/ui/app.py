@@ -312,12 +312,12 @@ with st.sidebar:
 
     try:
         from config import settings
-        demo_mode = settings.DEMO_MODE
+        demo_mode = getattr(settings, "OFFLINE_DEV", False)
     except Exception:
-        demo_mode = True
+        demo_mode = False
 
     col1, col2 = st.columns(2)
-    col1.metric("Mode", "DEMO" if demo_mode else "LIVE")
+    col1.metric("Mode", "OFFLINE DEV" if demo_mode else "LIVE")
     col2.metric("Agent", "✅" if _AGENT_AVAILABLE else "❌")
 
     st.caption(f"v2.1.0 · {datetime.utcnow().strftime('%Y-%m-%d')}")

@@ -158,8 +158,8 @@ class CaseDeliverable(BaseModel):
     evidence: List[EvidenceItem] = Field(default_factory=list)
     similar_prior_cases: List[str] = Field(default_factory=list) # CC-#### IDs from closed_cases_history.csv
     summary: str                                # 2-6 sentences for an analyst
-    written_to_graph: bool = True               # Whether stored in TigerGraph / memory store
-    graph_case_id: str = ""                     # Graph vertex ID, e.g. "CASE-2016-3514030"
+    written_to_graph: bool = False              # Set strictly from actual TigerGraph write-back
+    graph_case_id: str = ""                     # Real Graph vertex ID from upsert
 
 
 # ============================================================
@@ -348,8 +348,8 @@ def new_case_state(trigger: TriggerEvent) -> FraudAgentState:
         case_verdict=CaseVerdict.UNCERTAIN,
         summary="",
         stop_reason="Initial state",
-        written_to_graph=True,
-        graph_case_id=f"CASE-2016-{trigger.flagged_txn_id}",
+        written_to_graph=False,
+        graph_case_id="",
         tool_calls_count=0,
         tokens_consumed=0,
         latency_s=0.0,
@@ -459,8 +459,8 @@ def state_to_result_dict(state: FraudAgentState) -> Dict[str, Any]:
         "evidence":                  evidence_list,
         "similar_prior_cases":       [str(c) for c in state.get("similar_cases", [])],
         "summary":                   summary_text,
-        "written_to_graph":          bool(state.get("written_to_graph", True)),
-        "graph_case_id":             str(state.get("graph_case_id", f"CASE-2016-{state.get('flagged_txn_id', '')}")),
+        "written_to_graph":          bool(state.get("written_to_graph", False)),
+        "graph_case_id":             str(state.get("graph_case_id", "")),
     }
 
     # Part 2: SAR
@@ -515,7 +515,7 @@ def state_to_result_dict(state: FraudAgentState) -> Dict[str, Any]:
         for r in state.get("evidence_requests", [])
     ]
 
-    return {
+    res = {
         "case_id":           str(state.get("case_id", "")),
         "case":              case_part,
         "evidence_requests": ev_reqs,
@@ -526,3 +526,12 @@ def state_to_result_dict(state: FraudAgentState) -> Dict[str, Any]:
         "tokens":            int(state.get("tokens_consumed", 0)),
         "latency_s":         round(float(state.get("latency_s", 0.0)), 2),
     }
+
+    try:
+        from config import settings
+        if getattr(settings, "OFFLINE_DEV", False):
+            res["offline_dev"] = True
+    except Exception:
+        pass
+
+    return res

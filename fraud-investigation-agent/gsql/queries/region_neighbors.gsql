@@ -1,0 +1,18 @@
+// ============================================================
+// region_neighbors.gsql
+// Retrieves transaction activity and cards associated with a
+// billing region (addr1).
+// ============================================================
+
+CREATE OR REPLACE QUERY region_neighbors(
+    STRING region_id,
+    INT window_days = 30
+) {
+    RegionSet = { BillingRegion.* };
+    StartRegion = SELECT r FROM RegionSet:r WHERE r.region_id == region_id;
+
+    Txns = SELECT t FROM StartRegion:r -(<BILLED_IN:e)- Transaction:t;
+    Cards = SELECT c FROM Txns:t -(<MADE:e)- Card:c;
+
+    PRINT StartRegion, Txns.size() AS txn_count, Cards.size() AS card_count, Txns, Cards;
+}

@@ -1,0 +1,90 @@
+{
+  "case_id": "HHG-013",
+  "case": {
+    "status": "closed_fraud",
+    "verdict": "fraud",
+    "fraud_probability": 0.85,
+    "pattern": "card_not_present_new_device",
+    "pattern_description": "",
+    "affected_txn_ids": [
+      "3526826"
+    ],
+    "first_suspicious_txn_id": "3526826",
+    "connected_card_ids": [],
+    "connected_device_profiles": [],
+    "exposure_usd": 35.66,
+    "evidence": [
+      {
+        "claim": "Flagged amount $35.66 is well within cardholder historical average of $112.47 (max $3891.01)",
+        "source": "graph",
+        "ref": "query:card_history(customer_id=C07671)",
+        "entity_ids": [
+          "3526826"
+        ]
+      },
+      {
+        "claim": "Transaction originated from a new unrecognized device profile (Windows | chrome 66.0)",
+        "source": "graph",
+        "ref": "query:device_profile(txn_id=3526826)",
+        "entity_ids": [
+          "3526826"
+        ]
+      }
+    ],
+    "similar_prior_cases": [
+      "CC-0011",
+      "CC-0018",
+      "CC-0019"
+    ],
+    "summary": "The investigation concludes that transaction 3526826 was a confirmed compromise, not an authorized cardholder spend, and is classified as fraud under the “card_not_present_new_device” pattern. Evidence includes the low‑value ($35.66) CNP purchase originating from a device profile never seen before for Card C07671‑K2, with no linked or connected cards and no legitimate customer response to outreach. Accordingly, the card has been blocked for re‑issuance and a fraud case has been created per bank policy.",
+    "written_to_graph": true,
+    "graph_case_id": "HHG-013"
+  },
+  "evidence_requests": [
+    {
+      "type": "customer_validation",
+      "asked_after_step": 2,
+      "assumed_response": "Customer states they did not recognize the charge and have not shared their card credentials."
+    }
+  ],
+  "next_best_actions": {
+    "initial": [
+      {
+        "action": "DECLINE_TRANSACTION",
+        "route": "L1",
+        "reason": "R1: Elevated fraud probability on flagged authorization; decline pending inquiry"
+      },
+      {
+        "action": "STEP_UP_AUTH",
+        "route": "auto",
+        "reason": "R1: Require step-up passcode/auth before allowing further activity"
+      }
+    ],
+    "final": [
+      {
+        "action": "BLOCK_CARD",
+        "route": "L1",
+        "reason": "R2: Customer denied transaction; exposure $35.66 (L1 <= $2,500)"
+      },
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "R2: Customer denied transaction; open case and record to graph"
+      }
+    ],
+    "what_changed": "Customer denial confirmed unauthorized transaction, elevating fraud probability to 0.75. Pre-evidence monitoring escalated to immediate BLOCK_CARD and CREATE_CASE under Policy R2. Because exposure ($35.66) is under $1,000 and no cross-card compromise linkage exists, the matter is resolved as case-only without external regulatory SAR filing."
+  },
+  "sar": {
+    "file": false,
+    "reason": "No regulatory filing required under Fraud Policy thresholds (exposure under limit and no multi-account ring link).",
+    "narrative": "",
+    "subjects": [],
+    "total_amount_usd": 0.0,
+    "activity_dates": []
+  },
+  "stop_reason": "Definitive evidence of compromise obtained; protective actions and report executed.",
+  "tool_calls": 10,
+  "tokens": 722,
+  "latency_s": 4.79,
+  "offline_dev": true
+}

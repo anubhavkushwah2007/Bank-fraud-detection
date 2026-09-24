@@ -46,13 +46,14 @@ def get_action_route(action: str, exposure_usd: float = 0.0) -> str:
         PolicyAction.STEP_UP_AUTH.value,
         PolicyAction.GENERATE_REPORT.value,
         PolicyAction.CREATE_CASE.value,
-        PolicyAction.ESCALATE_TO_ANALYST.value,
         PolicyAction.CLOSE_NO_FRAUD.value,
     ):
+
         return ApprovalRoute.AUTO.value
 
-    if action_str == PolicyAction.DECLINE_TRANSACTION.value:
+    if action_str in (PolicyAction.DECLINE_TRANSACTION.value, PolicyAction.ESCALATE_TO_ANALYST.value):
         return ApprovalRoute.L1.value
+
 
     if action_str == PolicyAction.BLOCK_CARD.value:
         return ApprovalRoute.L1.value if exposure_usd <= 2500.0 else ApprovalRoute.L2.value
@@ -101,7 +102,7 @@ def compute_initial_actions(
             ))
         return actions
 
-    # Case 2: Shared origin / coordinated ring across multiple cards (Policy R6 / HHG-014)
+    # Case 2: Shared origin / coordinated ring across multiple cards (Policy R6)
     has_real_connected_cards = len(evidence.connected_cards) > 0 and any(
         c.split("-")[0] != trigger.customer_id for c in evidence.connected_cards
     )
@@ -235,6 +236,7 @@ def compute_final_actions(
     evidence: GraphEvidence,
     risk: RiskAssessment,
     ev_request: Optional[EvidenceRequest],
+    initial_actions: Optional[List[ActionItem]] = None,
 ) -> Tuple[List[ActionItem], str, bool]:
     """
     Compute final recommendations AFTER the assumed response from evidence_requests.
@@ -244,29 +246,19 @@ def compute_final_actions(
     exposure = risk.exposure_usd
     sar_required = False
 
-    # If no evidence request was made (e.g. immediate testing sequence)
+    # If no evidence request was made, final equals initial and what_changed == "nothing"
     if not ev_request:
-        if evidence.testing_pattern_detected:
-            final_actions.append(ActionItem(
-                action=PolicyAction.BLOCK_CARD.value,
-                route=get_action_route(PolicyAction.BLOCK_CARD.value, exposure),
-                reason=f"R5: Card testing sequence confirmed; exposure ${exposure:.2f}"
-            ))
-            final_actions.append(ActionItem(
-                action=PolicyAction.CREATE_CASE.value,
-                route=get_action_route(PolicyAction.CREATE_CASE.value, exposure),
-                reason="R5: Open case for card testing compromise"
-            ))
-            if exposure > 1000.0 or len(evidence.connected_cards) > 0:
-                final_actions.append(ActionItem(
-                    action=PolicyAction.FILE_REPORT.value,
-                    route=get_action_route(PolicyAction.FILE_REPORT.value, exposure),
-                    reason="R2: Exposure exceeds $1,000 on confirmed unauthorized card testing"
-                ))
-                sar_required = True
-            return final_actions, "Testing sequence confirmed without requiring customer outreach; card blocked.", sar_required
+        if initial_actions:
+            final_actions = [
+                ActionItem(action=a.action, route=a.route, reason=a.reason)
+                for a in initial_actions
+            ]
+        what_changed = "nothing"
+        sar_required = any(a.action == PolicyAction.FILE_REPORT.value for a in final_actions)
+        return final_actions, what_changed, sar_required
 
     resp = (ev_request.assumed_response if ev_request else "").lower()
+
     req_type = ev_request.type if ev_request else ""
 
     # Outcome 1: Customer confirms transaction is AUTHORIZED (Policy R3 / R7) -> LEGITIMATE

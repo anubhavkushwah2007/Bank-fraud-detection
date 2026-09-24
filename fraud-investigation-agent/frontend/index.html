@@ -468,6 +468,19 @@
                     </button>
                 </form>
 
+                <!-- Investigation Error Banner (Visible failure banner) -->
+                <div id="investigateErrorBanner" class="glass-panel" style="display: none; margin-top: 20px; background: rgba(239, 68, 68, 0.15); border: 1.5px solid #ef4444; border-radius: 10px; padding: 18px 24px; color: #fecaca; animation: fadeIn 0.3s ease;">
+                    <div style="display: flex; align-items: flex-start; gap: 14px;">
+                        <span style="font-size: 1.8rem; line-height: 1;">❌</span>
+                        <div style="flex: 1;">
+                            <div style="font-size: 1.05rem; font-weight: 700; color: #f87171; margin-bottom: 6px;">
+                                Investigation Execution Failed
+                            </div>
+                            <div id="investigateErrorMessage" style="font-family: 'JetBrains Mono', monospace; font-size: 0.88rem; line-height: 1.5; color: #fca5a5; word-break: break-word;"></div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Investigation Progress & Results -->
                 <div class="investigation-results" id="investigationResults" style="display: none;">
                     <div class="progress-section glass-panel" id="progressSection">
@@ -535,26 +548,39 @@
                 </div>
 
                 <div class="case-detail glass-panel" id="caseDetail">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <h2 id="caseHeaderTitle" style="font-size: 1.3rem; margin: 0; color: #fff;">Case Details</h2>
+                            <span id="caseOfflineBadge" style="display: none; background: rgba(245, 158, 11, 0.2); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.4); padding: 3px 8px; border-radius: 4px; font-weight: 700; font-size: 0.72rem; letter-spacing: 0.05em;">OFFLINE_DEV</span>
+                            <span id="caseGraphBadge" style="display: none; background: rgba(52, 211, 153, 0.15); color: #34d399; border: 1px solid rgba(52, 211, 153, 0.4); padding: 3px 8px; border-radius: 4px; font-size: 0.72rem;"></span>
+                        </div>
+                        <div id="caseStopReasonBadge" style="font-size: 0.8rem; color: #94a3b8; font-style: italic;"></div>
+                    </div>
+
                     <div class="kpi-grid kpi-grid-5" id="caseMetrics"></div>
 
-                    <div class="result-tabs">
+                    <div class="result-tabs" style="margin-top: 20px;">
                         <div class="tab-header">
-                            <button class="tab-btn active" data-tab="cv-full">🔍 Full Result</button>
-                            <button class="tab-btn" data-tab="cv-score">📈 Score</button>
-                            <button class="tab-btn" data-tab="cv-audit">📋 Audit Trail</button>
-                            <button class="tab-btn" data-tab="cv-sar">📄 SAR</button>
+                            <button class="tab-btn active" data-tab="cv-actions">⚡ Actions & Decisions</button>
+                            <button class="tab-btn" data-tab="cv-evidence">🔐 Evidence & Requests</button>
+                            <button class="tab-btn" data-tab="cv-sar">📄 SAR Narrative</button>
+                            <button class="tab-btn" data-tab="cv-status">🌐 Graph Memory</button>
+                            <button class="tab-btn" data-tab="cv-full">🔍 Full Answer JSON</button>
                         </div>
-                        <div class="tab-content active" id="tabCvFull">
-                            <pre class="code-block" id="caseFullJson"></pre>
+                        <div class="tab-content active" id="tabCvActions">
+                            <div id="caseActionsContent"></div>
                         </div>
-                        <div class="tab-content" id="tabCvScore">
-                            <div id="caseScoreContent"></div>
-                        </div>
-                        <div class="tab-content" id="tabCvAudit">
-                            <div class="audit-trail" id="caseAuditContent"></div>
+                        <div class="tab-content" id="tabCvEvidence">
+                            <div id="caseEvidenceContent"></div>
                         </div>
                         <div class="tab-content" id="tabCvSar">
                             <div id="caseSarContent"></div>
+                        </div>
+                        <div class="tab-content" id="tabCvStatus">
+                            <div id="caseStatusContent"></div>
+                        </div>
+                        <div class="tab-content" id="tabCvFull">
+                            <pre class="code-block" id="caseFullJson"></pre>
                         </div>
                     </div>
                 </div>

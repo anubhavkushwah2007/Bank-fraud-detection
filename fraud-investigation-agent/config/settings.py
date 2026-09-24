@@ -20,15 +20,17 @@ except ImportError:
 # Support both TG_* and TIGERGRAPH_* environment variable conventions
 TIGERGRAPH_HOST     = os.getenv("TG_HOST", os.getenv("TIGERGRAPH_HOST", "http://localhost"))
 TIGERGRAPH_PORT     = int(os.getenv("TG_PORT", os.getenv("TIGERGRAPH_PORT", "14240")))
-TIGERGRAPH_GRAPH    = os.getenv("TG_GRAPH_NAME", os.getenv("TIGERGRAPH_GRAPH", "Transaction_Fraud"))
+TIGERGRAPH_GRAPH    = os.getenv("TG_GRAPHNAME", os.getenv("TG_GRAPH_NAME", os.getenv("TIGERGRAPH_GRAPH", "Transaction_Fraud")))
 TIGERGRAPH_USERNAME = os.getenv("TG_USERNAME", os.getenv("TIGERGRAPH_USERNAME", "tigergraph"))
 TIGERGRAPH_PASSWORD = os.getenv("TG_PASSWORD", os.getenv("TIGERGRAPH_PASSWORD", "tigergraph"))
 TIGERGRAPH_SECRET   = os.getenv("TG_SECRET", os.getenv("TIGERGRAPH_SECRET", ""))
 TIGERGRAPH_TOKEN    = os.getenv("TG_TOKEN", os.getenv("TIGERGRAPH_TOKEN", ""))
 
-# TG_MODE: 'live' or 'demo'
-TG_MODE = os.getenv("TG_MODE", "demo").lower()
-DEMO_MODE = TG_MODE != "live" if "TG_MODE" in os.environ else os.getenv("DEMO_MODE", "true").lower() in ("true", "1", "yes")
+# ─── TigerGraph Connection Flags ──────────────────────────────────────────────
+TG_TGCLOUD   = os.getenv("TG_TGCLOUD", "true").lower() in ("true", "1", "yes")
+TG_SSL_PORT  = int(os.getenv("TG_SSL_PORT", "443"))
+OFFLINE_DEV  = os.getenv("OFFLINE_DEV", "false").lower() in ("true", "1", "yes")
+STRICT_GRAPH = os.getenv("STRICT_GRAPH", "true").lower() in ("true", "1", "yes")
 
 # ─── LLM Provider (Groq Primary) ───────────────────────────────────────────────
 LLM_PROVIDER        = os.getenv("LLM_PROVIDER", "groq")   # groq | google | openai
@@ -67,11 +69,10 @@ MCP_SERVER_HOST = os.getenv("MCP_HOST", os.getenv("MCP_SERVER_HOST", "0.0.0.0"))
 MCP_SERVER_PORT = int(os.getenv("MCP_PORT", os.getenv("MCP_SERVER_PORT", "8765")))
 
 # ─── Paths ─────────────────────────────────────────────────────────────────────
-DATA_DIR       = BASE_DIR / "data"
-BENCHMARK_DIR  = DATA_DIR / "benchmark_cases"
-CASE_PACK_CSV  = DATA_DIR / "case_pack.csv"
+DATA_DIR         = BASE_DIR / os.getenv("DATA_DIR", "data_real")
+CASE_PACK_CSV    = DATA_DIR / "case_pack.csv"
 TRANSACTIONS_CSV = DATA_DIR / "transactions.csv"
-IDENTITY_CSV   = DATA_DIR / "identity.csv"
+IDENTITY_CSV     = DATA_DIR / "identity.csv"
 CLOSED_CASES_CSV = DATA_DIR / "closed_cases_history.csv"
 CASES_OUTPUT_DIR = BASE_DIR / "cases"
-POLICIES_PATH  = BASE_DIR / "config" / "fraud_policies.json"
+POLICIES_PATH    = BASE_DIR / "config" / "fraud_policies.json"

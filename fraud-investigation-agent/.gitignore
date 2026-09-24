@@ -10,6 +10,9 @@ __pycache__/
 
 # Vector store / generated data
 data/chroma_db/
+data/llm_cache/
+data_real/
+cases_dev/
 
 # OS junk
 .DS_Store

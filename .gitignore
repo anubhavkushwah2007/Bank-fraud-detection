@@ -1,0 +1,20 @@
+# Environment & secrets
+.env
+*.env
+
+# Data & dev cases
+data_real/
+cases_dev/
+fraud-investigation-agent/data_real/
+fraud-investigation-agent/cases_dev/
+fraud-investigation-agent/data/chroma_db/
+fraud-investigation-agent/data/*.csv
+fraud-investigation-agent/data/*.parquet
+fraud-investigation-agent/data/llm_cache/
+data/llm_cache/
+
+# Python & caches
+__pycache__/
+*.pyc
+.vscode/
+.DS_Store

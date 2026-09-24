@@ -59,20 +59,70 @@ app.add_middleware(
 # ══════════════════════════════════════════════════════════════════════════════
 
 def _check_tigergraph() -> Dict[str, Any]:
-    """Probe TigerGraph connectivity."""
+    """Probe TigerGraph connectivity and report real vertex counts."""
     try:
         from graph.tigergraph_client import get_graph_client
         client = get_graph_client()
-        has_live = client.conn is not None
-        has_data = client.dataset_provider._df_enriched is not None
+        if client.conn is not None:
+            counts = {}
+            try:
+                raw = client.conn.getVertexCount("*")
+                if isinstance(raw, dict):
+                    counts = raw
+                elif isinstance(raw, (int, float)):
+                    counts = {"Transaction": int(raw)}
+            except Exception as e:
+                logger.warning(f"Live vertex count '*' query failed: {e}")
+
+            if not counts:
+                for vt in ["Transaction", "Customer", "Card", "DeviceProfile", "EmailDomain", "BillingRegion", "ClosedCase", "Case"]:
+                    try:
+                        cnt = client.conn.getVertexCount(vt)
+                        if cnt is not None:
+                            counts[vt] = int(cnt)
+                    except Exception:
+                        pass
+
+            total_v = sum(counts.values()) if counts else 0
+            return {
+                "status": "live",
+                "host": settings.TIGERGRAPH_HOST,
+                "graph": settings.TIGERGRAPH_GRAPH,
+                "records": total_v,
+                "total_vertices": total_v,
+                "vertex_counts": counts,
+            }
+
+        # Offline / dataset mode
+        df = client._get_offline_df()
+        if df is not None:
+            from rag.memory_store import get_memory_store
+            ms = get_memory_store()
+            counts = {
+                "Transaction": len(df),
+                "Customer": int(df["customer_id"].nunique()) if "customer_id" in df.columns else 20,
+                "ClosedCase": ms.count(),
+                "Case": len(client._offline_cases),
+            }
+            total_v = sum(counts.values())
+            return {
+                "status": "offline_dev" if settings.OFFLINE_DEV else "dataset",
+                "host": settings.TIGERGRAPH_HOST if not settings.OFFLINE_DEV else "local_dataset",
+                "graph": settings.TIGERGRAPH_GRAPH,
+                "records": total_v,
+                "total_vertices": total_v,
+                "vertex_counts": counts,
+            }
+
         return {
-            "status": "live" if has_live else ("dataset" if has_data else "offline"),
-            "host": settings.TIGERGRAPH_HOST if has_live else "local_dataset",
+            "status": "offline",
+            "host": settings.TIGERGRAPH_HOST,
             "graph": settings.TIGERGRAPH_GRAPH,
-            "records": len(client.dataset_provider._df_enriched) if has_data else 0,
+            "records": 0,
+            "vertex_counts": {},
         }
     except Exception as e:
-        return {"status": "error", "error": str(e)}
+        return {"status": "error", "error": str(e), "records": 0, "vertex_counts": {}}
 
 
 def _check_llm() -> Dict[str, Any]:
@@ -122,8 +172,9 @@ def _check_mcp() -> Dict[str, Any]:
 async def system_status():
     """Return live system status for all components."""
     return {
-        "mode": settings.TG_MODE,
-        "demo_mode": settings.DEMO_MODE,
+        "mode": "offline_dev" if settings.OFFLINE_DEV else "live",
+        "offline_dev": settings.OFFLINE_DEV,
+        "strict_graph": settings.STRICT_GRAPH,
         "graph": _check_tigergraph(),
         "llm": _check_llm(),
         "rag": _check_rag(),
@@ -190,63 +241,18 @@ async def run_investigation_api(req: InvestigateRequest):
 
 @app.post("/api/benchmark")
 async def run_benchmark():
-    """Run all 20 benchmark HHG cases through the agent and return results."""
+    """Run all 20 real cases from case_pack.csv through the agent and return results."""
     try:
-        from agent.state import TriggerEvent, TriggerType
-        from agent.workflow import run_investigation_sequential
-
-        cases_dir = settings.BENCHMARK_DIR
-        case_files = sorted(cases_dir.glob("HHG-*.json"))
-
-        if not case_files:
-            raise HTTPException(status_code=404, detail=f"No HHG-*.json files in {cases_dir}")
-
+        from eval.run_benchmark import load_all_cases, run_single_case
+        all_cases = load_all_cases()
         results = []
-        for fp in case_files:
-            with open(fp, "r", encoding="utf-8") as f:
-                raw = json.load(f)
-
-            # Build TriggerEvent from benchmark case
-            case_id = raw.get("case_id", fp.stem)
-            trigger = raw.get("initial_trigger", {})
-
-            tt_map = {
-                "HIGH_RISK_SCORE": TriggerType.RISK_SCORE,
-                "VELOCITY_SPIKE": TriggerType.RISK_SCORE,
-                "PATTERN_MATCH": TriggerType.RISK_SCORE,
-                "CUSTOMER_REPORT": TriggerType.CUSTOMER_REPORT,
-                "ANALYST_REQUEST": TriggerType.ANALYST_REQUEST,
-            }
-            ttype = tt_map.get(trigger.get("trigger_type", ""), TriggerType.RISK_SCORE)
-
-            te = TriggerEvent(
-                case_id=fp.stem,  # HHG-001 etc.
-                card_id=trigger.get("account_id", ""),
-                customer_id=trigger.get("account_id", ""),
-                flagged_txn_id=trigger.get("transaction_id", ""),
-                trigger_type=ttype,
-                risk_score=trigger.get("initial_risk", 0.7),
-                initial_risk=trigger.get("initial_risk", 0.7),
-            )
-
-            try:
-                result = run_investigation_sequential(te)
-                result["_benchmark_case_id"] = case_id
-                result["_benchmark_expected"] = raw.get("expected", {})
-                results.append(result)
-            except Exception as case_err:
-                results.append({
-                    "_benchmark_case_id": case_id,
-                    "error": str(case_err),
-                })
-
+        for c in all_cases:
+            res = run_single_case(c)
+            results.append(res)
         return JSONResponse(content={
             "total": len(results),
             "results": results,
         })
-
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Benchmark failed: {e}\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -299,12 +305,40 @@ async def mcp_proxy(tool_name: str, request: Request):
 
 @app.get("/api/cases")
 async def get_cases():
-    """Return the pre-generated cases.json data."""
-    cases_file = PROJECT_ROOT / "frontend" / "data" / "cases.json"
-    if cases_file.exists():
-        with open(cases_file, "r", encoding="utf-8") as f:
-            return json.load(f)
-    raise HTTPException(status_code=404, detail="cases.json not found — run convert_cases.py first")
+    """Return the authentic 20 cases from the cases/ directory (the real answer files)."""
+    cases_dir = settings.CASES_OUTPUT_DIR
+    if not cases_dir.exists() or not list(cases_dir.glob("HHG-*.json")):
+        cases_dir = PROJECT_ROOT.parent / "cases"
+
+    case_files = sorted(cases_dir.glob("HHG-*.json"))
+    if not case_files:
+        raise HTTPException(status_code=404, detail=f"No answer files found in {cases_dir}")
+
+    results = []
+    for fp in case_files:
+        try:
+            with open(fp, "r", encoding="utf-8") as f:
+                raw = json.load(f)
+            results.append(raw)
+        except Exception as e:
+            logger.warning(f"Error loading {fp.name}: {e}")
+    return results
+
+
+@app.get("/api/case/{case_id}")
+async def get_single_case(case_id: str):
+    """Return the full answer file for a specific case."""
+    cid = case_id if case_id.endswith(".json") else f"{case_id}.json"
+    cases_dir = settings.CASES_OUTPUT_DIR
+    file_path = cases_dir / cid
+    if not file_path.exists():
+        file_path = PROJECT_ROOT.parent / "cases" / cid
+
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail=f"Case file {cid} not found")
+
+    with open(file_path, "r", encoding="utf-8") as f:
+        return json.load(f)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -329,12 +363,8 @@ async def serve_js():
 
 
 @app.get("/")
-@app.get("/{path:path}")
-async def serve_frontend(path: str = ""):
-    """Serve index.html for all non-API routes (SPA catch-all)."""
-    # Don't intercept API or static routes
-    if path.startswith("api/") or path.startswith("assets/") or path.startswith("data/"):
-        raise HTTPException(status_code=404)
+async def serve_index():
+    """Serve index.html at root."""
     return FileResponse(str(FRONTEND_DIR / "index.html"), headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
 
 
@@ -346,6 +376,6 @@ if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("FRONTEND_PORT", "8000"))
     logger.info(f"Starting HHGOA Platform on http://localhost:{port}")
-    logger.info(f"  TG_MODE={settings.TG_MODE}  DEMO_MODE={settings.DEMO_MODE}")
+    logger.info(f"  STRICT_GRAPH={settings.STRICT_GRAPH}  OFFLINE_DEV={settings.OFFLINE_DEV}")
     logger.info(f"  LLM_PROVIDER={settings.LLM_PROVIDER}  MODEL={settings.LLM_MODEL}")
     uvicorn.run("server:app", host="0.0.0.0", port=port, reload=False)

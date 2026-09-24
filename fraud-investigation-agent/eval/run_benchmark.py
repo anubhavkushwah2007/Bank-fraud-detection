@@ -1,17 +1,15 @@
 """
 eval/run_benchmark.py
 ──────────────────────
-Official benchmark runner for all 20 Hacker House Goa exam cases from data/case_pack.csv.
+Official benchmark runner for all 20 Hacker House Goa exam cases from case_pack.csv.
 
-For each case:
-  1. Load case details from data/case_pack.csv (TriggerType: risk_score, customer_report, analyst_request)
-  2. Execute the full fraud investigation lifecycle via LangGraph/sequential pipeline
-  3. Save answer file to cases/<case_id>.json (with authentic dataset IDs & 15 case fields)
-  4. Log execution metrics and remaining Groq rate-limit quota
-  5. Run anti-overflagging distribution sanity check across all 20 cases
-
-Usage:
-  python eval/run_benchmark.py [--case HHG-001] [--all]
+Enforces:
+1. Decision logic blindness: fails if 'HHG-' is found in any file under agent/ or graph/.
+2. Authentic case loading: loads case_pack.csv with authentic customer_id != card_id.
+3. Strict mode: checks live TigerGraph connectivity and refuses to run if unreachable.
+4. Output format compliance: writes cases/<case_id>.json matching DATASET_README.md.
+5. Real metrics: tracks real tool calls, real LLM tokens (summed over case), and wall-clock latency.
+6. Summary reporting: prints formatted summary table at end of run.
 """
 from __future__ import annotations
 
@@ -24,7 +22,7 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-# ─── Ensure UTF-8 encoding for Windows consoles ───────────────────────────────
+# Ensure UTF-8 encoding for Windows console
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 if hasattr(sys.stderr, "reconfigure"):
@@ -48,21 +46,64 @@ from agent.state import (
     TriggerType,
 )
 from agent.workflow import run_investigation_sequential
+from config import settings
+from graph.tigergraph_client import get_graph_client, set_graph_client, TigerGraphClient
 
-CASE_PACK_CSV = PROJECT_ROOT / "data" / "case_pack.csv"
-CASES_DIR     = PROJECT_ROOT / "cases"
+CASE_PACK_CSV = settings.CASE_PACK_CSV
+CASES_DIR     = settings.CASES_OUTPUT_DIR
 CASES_DIR.mkdir(parents=True, exist_ok=True)
 
 
+def check_no_case_id_leak() -> None:
+    """
+    Ensure decision logic is blind to case IDs:
+    Fail if the string 'HHG-' appears in any code file under agent/ or graph/.
+    """
+    forbidden = "HHG-"
+    leaks = []
+    for search_dir in [PROJECT_ROOT / "agent", PROJECT_ROOT / "graph"]:
+        if not search_dir.exists():
+            continue
+        for py_file in search_dir.rglob("*.py"):
+            try:
+                content = py_file.read_text(encoding="utf-8", errors="ignore")
+                if forbidden in content:
+                    leaks.append(f"{py_file.relative_to(PROJECT_ROOT)} contains '{forbidden}'")
+            except Exception as e:
+                logger.warning(f"Could not read {py_file}: {e}")
+
+    if leaks:
+        print("\n" + "!" * 75)
+        print("VIOLATION: Case ID leak detected! The agent must not read case IDs in decision logic.")
+        for leak in leaks:
+            print(f"  - {leak}")
+        print("!" * 75 + "\n")
+        raise RuntimeError("Benchmark aborted due to case ID leak in agent/ or graph/.")
+
+
 def load_all_cases() -> List[Dict[str, Any]]:
-    """Load all 20 cases from data/case_pack.csv."""
+    """
+    Load cases from case_pack.csv only:
+    (case_id, opened_at, trigger_type, trigger_text, flagged_txn_id, card_id, customer_id, risk_score).
+    Use real customer_id from the file. Do not set customer_id = card_id.
+    """
     if not CASE_PACK_CSV.exists():
         raise FileNotFoundError(f"case_pack.csv not found at {CASE_PACK_CSV}")
 
     df = pd.read_csv(CASE_PACK_CSV)
+    required_cols = [
+        "case_id", "opened_at", "trigger_type", "trigger_text",
+        "flagged_txn_id", "card_id", "customer_id", "risk_score"
+    ]
+    for col in required_cols:
+        if col not in df.columns:
+            raise ValueError(f"Missing required column '{col}' in {CASE_PACK_CSV}")
+
     cases = []
     for _, row in df.iterrows():
-        score = float(row["risk_score"]) if pd.notna(row.get("risk_score")) and str(row.get("risk_score")).strip() else None
+        raw_score = row.get("risk_score")
+        score = float(raw_score) if pd.notna(raw_score) and str(raw_score).strip() else None
+
         cases.append({
             "case_id":        str(row["case_id"]).strip(),
             "opened_at":      str(row["opened_at"]).strip(),
@@ -76,8 +117,30 @@ def load_all_cases() -> List[Dict[str, Any]]:
     return cases
 
 
+def verify_strict_connection() -> None:
+    """Refuse to start if OFFLINE_DEV is true or the graph is unreachable."""
+    if settings.OFFLINE_DEV:
+        msg = "STRICT ERROR: OFFLINE_DEV is true. Strict benchmark run requires live TigerGraph connection."
+        logger.error(msg)
+        raise RuntimeError(msg)
+
+    client = get_graph_client()
+    if not client or not client.conn:
+        msg = "STRICT ERROR: TigerGraph is unreachable or connection is not established."
+        logger.error(msg)
+        raise RuntimeError(msg)
+
+    try:
+        ver = client.conn.getVer()
+        logger.info(f"Verified live TigerGraph connection: {ver}")
+    except Exception as e:
+        msg = f"STRICT ERROR: TigerGraph liveness check failed: {e}"
+        logger.error(msg)
+        raise RuntimeError(msg)
+
+
 def run_single_case(case_info: Dict[str, Any]) -> Dict[str, Any]:
-    """Execute investigation on a single benchmark case."""
+    """Execute investigation on a single benchmark case and save result."""
     cid = case_info["case_id"]
     logger.info(f"▶ Starting investigation for {cid} ({case_info['trigger_type']}) on card {case_info['card_id']}")
 
@@ -109,21 +172,47 @@ def run_single_case(case_info: Dict[str, Any]) -> Dict[str, Any]:
     with open(out_file, "w", encoding="utf-8") as f:
         json.dump(result, f, indent=2, ensure_ascii=False)
 
-    # Log quota and verdict summary
-    llm = get_rate_limited_llm()
-    rem = llm.calls_remaining
-    verdict = result["case"]["verdict"]
-    pattern = result["case"]["pattern"]
-    exposure = result["case"]["exposure_usd"]
-    sar_file = result["sar"]["file"]
-    final_actions = [a["action"] for a in result["next_best_actions"]["final"]]
+    # Also sync to root cases/ if present
+    parent_cases = PROJECT_ROOT.parent / "cases"
+    if parent_cases.exists() and parent_cases.resolve() != CASES_DIR.resolve():
+        parent_out = parent_cases / f"{cid}.json"
+        with open(parent_out, "w", encoding="utf-8") as f:
+            json.dump(result, f, indent=2, ensure_ascii=False)
 
-    logger.info(
-        f"✔ Completed {cid} in {elapsed:.1f}s | Verdict: {verdict.upper()} | "
-        f"Pattern: {pattern} | Exp: ${exposure:,.2f} | SAR: {sar_file} | "
-        f"Actions: {final_actions} | Quota Remaining: {rem}"
-    )
     return result
+
+
+def print_summary_table(results: List[Dict[str, Any]]) -> None:
+    """Print clean summary table of all benchmark cases."""
+    print("\n" + "=" * 120)
+    print("  HHGOA FRAUD INVESTIGATION BENCHMARK — SUMMARY RESULTS")
+    print("=" * 120)
+    header = (
+        f"{'Case ID':<10} | {'Verdict':<11} | {'Prob':<6} | {'Pattern':<28} | "
+        f"{'Final Actions':<26} | {'SAR':<5} | {'Tokens':<7} | {'Latency':<8} | {'Graph'}"
+    )
+    print(header)
+    print("-" * 120)
+
+    for r in results:
+        cid = r.get("case_id", "")
+        c = r.get("case", {})
+        verdict = c.get("verdict", "")
+        prob = f"{c.get('fraud_probability', 0.0):.2f}"
+        pattern = c.get("pattern", "")[:28]
+        actions_list = [a.get("action", "") for a in r.get("next_best_actions", {}).get("final", [])]
+        actions_str = ", ".join(actions_list)[:26]
+        sar_str = "YES" if r.get("sar", {}).get("file", False) else "NO"
+        tokens = str(r.get("tokens", 0))
+        latency = f"{r.get('latency_s', 0.0):.2f}s"
+        graph_ok = "YES" if c.get("written_to_graph", False) else "NO"
+
+        print(
+            f"{cid:<10} | {verdict:<11} | {prob:<6} | {pattern:<28} | "
+            f"{actions_str:<26} | {sar_str:<5} | {tokens:<7} | {latency:<8} | {graph_ok}"
+        )
+
+    print("=" * 120 + "\n")
 
 
 def sanity_check_distribution(results: List[Dict[str, Any]]) -> None:
@@ -156,9 +245,9 @@ def sanity_check_distribution(results: List[Dict[str, Any]]) -> None:
         if v == "legitimate":
             legit_count += 1
 
-    print("\n" + "=" * 65)
-    print("BENCHMARK DISTRIBUTION SANITY PASS (Anti-Overflagging Check)")
-    print("=" * 65)
+    print("-" * 65)
+    print("DISTRIBUTION SANITY PASS (Anti-Overflagging Check):")
+    print("-" * 65)
     print(f"Total Cases Evaluated:       {total}")
     print(f"Verdicts:                    {verdicts}")
     print(f"Patterns:                    {patterns}")
@@ -170,33 +259,57 @@ def sanity_check_distribution(results: List[Dict[str, Any]]) -> None:
     if block_count > 12:
         logger.warning(
             f"⚠️ SANITY WARNING: {block_count}/{total} cases recommended BLOCK. "
-            "Competition specification warns: 'Half the cases are legitimate... An agent that blocks everything scores badly.' "
-            "Consider reviewing borderline cases."
+            "Competition specification warns: 'Half the cases are legitimate... An agent that blocks everything scores badly.'"
         )
     else:
         print(f"✅ SANITY CHECK PASSED: Balanced distribution ({legit_count} legitimate, {total - legit_count} fraud/uncertain).")
-    print("=" * 65 + "\n")
+    print("-" * 65 + "\n")
 
 
 def main():
     parser = argparse.ArgumentParser(description="HHGOA Fraud Investigation Benchmark Runner")
-    parser.add_argument("--case", type=str, default=None, help="Run specific case, e.g. HHG-001")
-    parser.add_argument("--all", action="store_true", default=True, help="Run all 20 cases")
+    parser.add_argument("--case", type=str, default=None, help="Run specific case, e.g. HHG-014")
+    parser.add_argument("--all", action="store_true", default=False, help="Run all 20 cases")
+    parser.add_argument("--strict", action="store_true", default=False, help="Refuse to start if OFFLINE_DEV is true or TigerGraph is unreachable")
+    parser.add_argument("-v", "--verbose", action="store_true", default=False, help="Enable verbose debug logging")
     args = parser.parse_args()
 
+    if args.verbose:
+        logging.getLogger().setLevel(logging.DEBUG)
+        logger.setLevel(logging.DEBUG)
+
+    # 1. Check for case ID leaks in agent/ or graph/
+    check_no_case_id_leak()
+
+    # 2. Strict connectivity check if requested
+    if args.strict:
+        verify_strict_connection()
+    else:
+        if not settings.OFFLINE_DEV:
+            try:
+                client = get_graph_client()
+                if client and client.conn:
+                    client.conn.getVer()
+            except Exception as e:
+                logger.warning(f"TigerGraph Cloud is unreachable ({e}). Setting OFFLINE_DEV=True to use authentic local parquet dataset.")
+                settings.OFFLINE_DEV = True
+                set_graph_client(TigerGraphClient())
+
+    # 3. Load cases from case_pack.csv only
     all_cases = load_all_cases()
     logger.info(f"Loaded {len(all_cases)} cases from {CASE_PACK_CSV}")
 
+    # 4. Handle single-case execution
     if args.case:
         target = [c for c in all_cases if c["case_id"] == args.case]
         if not target:
-            logger.error(f"Case {args.case} not found!")
+            logger.error(f"Case {args.case} not found in {CASE_PACK_CSV}!")
             sys.exit(1)
         res = run_single_case(target[0])
-        sanity_check_distribution([res])
+        print_summary_table([res])
         return
 
-    # Run all 20 cases
+    # 5. Handle all cases
     results = []
     print("\n" + "═" * 65)
     print("  HHGOA FRAUD INVESTIGATION BENCHMARK — RUNNING 20 CASES")
@@ -207,6 +320,7 @@ def main():
         res = run_single_case(c)
         results.append(res)
 
+    print_summary_table(results)
     sanity_check_distribution(results)
     print(f"All 20 answer files saved to {CASES_DIR}/")
 

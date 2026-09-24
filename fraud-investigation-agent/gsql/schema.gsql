@@ -1,191 +1,109 @@
 // ============================================================
 // HHGOA Fraud Investigation System — TigerGraph Schema
-// Graph: FraudGraph
-// Version: 2.1.0
+// Graph Schema for Competition Benchmark & Real Dataset
 // ============================================================
 
-USE GLOBAL
+// ------------------------------------------------------------
+// VERTEX DEFINITIONS
+// ------------------------------------------------------------
 
-// ─── DROP existing graph (for clean reinstall) ─────────────────────────────
-// DROP GRAPH FraudGraph
-
-// ─── Create Graph ──────────────────────────────────────────────────────────
-CREATE GRAPH FraudGraph()
-
-USE GRAPH FraudGraph
-
-// ============================================================
-// VERTEX TYPES
-// ============================================================
-
-CREATE VERTEX Account (
-    PRIMARY_ID  account_id       STRING,
-    open_date                    DATETIME,
-    risk_baseline                FLOAT   DEFAULT 0.0,
-    status                       STRING  DEFAULT "ACTIVE",   // ACTIVE | FROZEN | CLOSED | WATCHLIST
-    account_type                 STRING  DEFAULT "CHECKING", // CHECKING | SAVINGS | CREDIT
-    email_hash                   STRING  DEFAULT "",
-    phone_hash                   STRING  DEFAULT "",
-    addr_zip                     STRING  DEFAULT "",
-    total_txn_count              INT     DEFAULT 0,
-    total_txn_amount             FLOAT   DEFAULT 0.0,
-    avg_txn_amount               FLOAT   DEFAULT 0.0,
-    risk_score_current           FLOAT   DEFAULT 0.0,
-    watchlist_reason             STRING  DEFAULT "",
-    last_updated                 DATETIME
-) WITH STATS="OUTDEGREE_BY_EDGETYPE"
+CREATE VERTEX Customer (
+    PRIMARY_ID customer_id STRING
+) WITH STATS="OUTDEGREE_BY_EDGETYPE";
 
 CREATE VERTEX Card (
-    PRIMARY_ID  card_id          STRING,
-    card_type                    STRING  DEFAULT "VISA",     // VISA | MC | AMEX | DISCOVER
-    issuer                       STRING  DEFAULT "",
-    expiration                   STRING  DEFAULT "",
-    bin_number                   STRING  DEFAULT "",
-    is_compromised               BOOL    DEFAULT FALSE,
-    compromise_date              DATETIME
-) WITH STATS="OUTDEGREE_BY_EDGETYPE"
+    PRIMARY_ID card_id STRING,
+    card4 STRING DEFAULT "",
+    card6 STRING DEFAULT ""
+) WITH STATS="OUTDEGREE_BY_EDGETYPE";
 
 CREATE VERTEX Transaction (
-    PRIMARY_ID  txn_id           STRING,
-    amount                       FLOAT,
-    timestamp                    DATETIME,
-    risk_score                   FLOAT   DEFAULT 0.0,
-    isFraud                      BOOL    DEFAULT FALSE,
-    product_cd                   STRING  DEFAULT "",         // W | H | C | S | R
-    card_present                 BOOL    DEFAULT TRUE,
-    trans_type                   STRING  DEFAULT "PURCHASE",
-    dist1                        FLOAT   DEFAULT 0.0,
-    dist2                        FLOAT   DEFAULT 0.0,
-    // C-features (count/behavioral)
-    C1  FLOAT DEFAULT 0.0, C2  FLOAT DEFAULT 0.0, C3  FLOAT DEFAULT 0.0,
-    C4  FLOAT DEFAULT 0.0, C5  FLOAT DEFAULT 0.0, C6  FLOAT DEFAULT 0.0,
-    C7  FLOAT DEFAULT 0.0, C8  FLOAT DEFAULT 0.0, C9  FLOAT DEFAULT 0.0,
-    C10 FLOAT DEFAULT 0.0, C11 FLOAT DEFAULT 0.0, C12 FLOAT DEFAULT 0.0,
-    C13 FLOAT DEFAULT 0.0, C14 FLOAT DEFAULT 0.0,
-    // V-features (Vesta risk metrics, sample)
-    V1  FLOAT DEFAULT 0.0, V2  FLOAT DEFAULT 0.0, V3  FLOAT DEFAULT 0.0,
-    V4  FLOAT DEFAULT 0.0, V5  FLOAT DEFAULT 0.0, V6  FLOAT DEFAULT 0.0,
-    // M-features (match flags)
-    M1 STRING DEFAULT "T", M2 STRING DEFAULT "T", M3 STRING DEFAULT "T",
-    M4 STRING DEFAULT "M0", M5 STRING DEFAULT "T", M6 STRING DEFAULT "T",
-    M7 STRING DEFAULT "", M8 STRING DEFAULT "T", M9 STRING DEFAULT "T"
-) WITH STATS="OUTDEGREE_BY_EDGETYPE"
+    PRIMARY_ID txn_id STRING,
+    ts DATETIME,
+    TransactionAmt FLOAT,
+    ProductCD STRING,
+    channel STRING,
+    risk_score FLOAT DEFAULT 0.0,
+    addr1 STRING DEFAULT "",
+    addr2 STRING DEFAULT "",
+    dist1 FLOAT DEFAULT 0.0,
+    P_emaildomain STRING DEFAULT "",
+    card4 STRING DEFAULT "",
+    card6 STRING DEFAULT "",
+    id_15 STRING DEFAULT "",
+    id_23 STRING DEFAULT "",
+    DeviceType STRING DEFAULT "",
+    C1 FLOAT DEFAULT 0.0,
+    C2 FLOAT DEFAULT 0.0,
+    D1 FLOAT DEFAULT 0.0,
+    M1 STRING DEFAULT "",
+    M2 STRING DEFAULT "",
+    M3 STRING DEFAULT "",
+    M4 STRING DEFAULT "",
+    M5 STRING DEFAULT "",
+    M6 STRING DEFAULT "",
+    M7 STRING DEFAULT "",
+    M8 STRING DEFAULT "",
+    M9 STRING DEFAULT ""
+) WITH STATS="OUTDEGREE_BY_EDGETYPE";
 
-CREATE VERTEX Device (
-    PRIMARY_ID  device_id        STRING,
-    device_info                  STRING  DEFAULT "",
-    device_type                  STRING  DEFAULT "desktop",  // desktop | mobile | tablet | bot
-    os                           STRING  DEFAULT "",
-    browser                      STRING  DEFAULT "",
-    screen_resolution            STRING  DEFAULT "",
-    is_emulator                  BOOL    DEFAULT FALSE,
-    risk_score                   FLOAT   DEFAULT 0.0
-) WITH STATS="OUTDEGREE_BY_EDGETYPE"
+CREATE VERTEX DeviceProfile (
+    PRIMARY_ID device_id STRING,
+    device_info STRING DEFAULT "",
+    id_30 STRING DEFAULT "",
+    id_31 STRING DEFAULT "",
+    id_33 STRING DEFAULT ""
+) WITH STATS="OUTDEGREE_BY_EDGETYPE";
 
-CREATE VERTEX IP_Address (
-    PRIMARY_ID  ip_hash          STRING,
-    country                      STRING  DEFAULT "US",
-    region                       STRING  DEFAULT "",
-    is_proxy                     BOOL    DEFAULT FALSE,
-    is_vpn                       BOOL    DEFAULT FALSE,
-    is_tor                       BOOL    DEFAULT FALSE,
-    abuse_confidence             FLOAT   DEFAULT 0.0,
-    asn                          STRING  DEFAULT ""
-) WITH STATS="OUTDEGREE_BY_EDGETYPE"
+CREATE VERTEX EmailDomain (
+    PRIMARY_ID domain STRING
+) WITH STATS="OUTDEGREE_BY_EDGETYPE";
 
-CREATE VERTEX Email_Domain (
-    PRIMARY_ID  domain           STRING,
-    domain_risk                  FLOAT   DEFAULT 0.0,
-    is_disposable                BOOL    DEFAULT FALSE,
-    is_free_provider             BOOL    DEFAULT FALSE,
-    tld                          STRING  DEFAULT "com"
-) WITH STATS="OUTDEGREE_BY_EDGETYPE"
+CREATE VERTEX BillingRegion (
+    PRIMARY_ID region_id STRING
+) WITH STATS="OUTDEGREE_BY_EDGETYPE";
+
+CREATE VERTEX ClosedCase (
+    PRIMARY_ID case_id STRING,
+    status STRING DEFAULT "CLOSED",
+    verdict STRING DEFAULT "",
+    pattern STRING DEFAULT "",
+    fraud_probability FLOAT DEFAULT 0.0,
+    total_exposure FLOAT DEFAULT 0.0,
+    analyst_notes STRING DEFAULT ""
+) WITH STATS="OUTDEGREE_BY_EDGETYPE";
 
 CREATE VERTEX Case (
-    PRIMARY_ID  case_id          STRING,
-    status                       STRING  DEFAULT "OPEN",     // OPEN | IN_REVIEW | CLOSED | ESCALATED
-    confidence                   FLOAT   DEFAULT 0.0,
-    uncertainty_score            FLOAT   DEFAULT 0.0,
-    initial_risk                 FLOAT   DEFAULT 0.0,
-    final_risk                   FLOAT   DEFAULT 0.0,
-    fraud_typology               STRING  DEFAULT "",
-    assigned_analyst             STRING  DEFAULT "SYSTEM",
-    pre_evidence_action          STRING  DEFAULT "",
-    post_evidence_action         STRING  DEFAULT "",
-    approval_tier                STRING  DEFAULT "AUTOMATED_POLICY",
-    sar_required                 BOOL    DEFAULT FALSE,
-    sar_draft                    STRING  DEFAULT "",
-    summary_embedding            STRING  DEFAULT "",         // JSON-serialised float list
-    created_at                   DATETIME,
-    closed_at                    DATETIME,
-    audit_log                    STRING  DEFAULT "[]"        // JSON array of audit events
-) WITH STATS="OUTDEGREE_BY_EDGETYPE"
+    PRIMARY_ID case_id STRING,
+    status STRING DEFAULT "OPEN",
+    verdict STRING DEFAULT "UNDECIDED",
+    fraud_probability FLOAT DEFAULT 0.0,
+    pattern STRING DEFAULT "",
+    exposure_usd FLOAT DEFAULT 0.0,
+    summary STRING DEFAULT "",
+    opened_at DATETIME,
+    updated_at DATETIME,
+    customer_id STRING DEFAULT "",
+    card_id STRING DEFAULT "",
+    sar_required BOOL DEFAULT FALSE,
+    sar_draft STRING DEFAULT ""
+) WITH STATS="OUTDEGREE_BY_EDGETYPE";
 
-CREATE VERTEX Fraud_Pattern (
-    PRIMARY_ID  pattern_id       STRING,
-    name                         STRING,
-    description                  STRING  DEFAULT "",
-    key_signals                  STRING  DEFAULT "[]",       // JSON array
-    graph_pattern                STRING  DEFAULT "",
-    regulatory_ref               STRING  DEFAULT "",
-    sar_required                 BOOL    DEFAULT FALSE
-) WITH STATS="OUTDEGREE_BY_EDGETYPE"
+// ------------------------------------------------------------
+// EDGE DEFINITIONS
+// ------------------------------------------------------------
 
+CREATE DIRECTED EDGE OWNS (FROM Customer, TO Card) WITH REVERSE_EDGE="reverse_OWNS";
+CREATE DIRECTED EDGE MADE (FROM Card, TO Transaction) WITH REVERSE_EDGE="reverse_MADE";
+CREATE DIRECTED EDGE FROM_DEVICE (FROM Transaction, TO DeviceProfile) WITH REVERSE_EDGE="reverse_FROM_DEVICE";
+CREATE DIRECTED EDGE PURCHASER_EMAIL (FROM Transaction, TO EmailDomain) WITH REVERSE_EDGE="reverse_PURCHASER_EMAIL";
+CREATE DIRECTED EDGE BILLED_IN (FROM Transaction, TO BillingRegion) WITH REVERSE_EDGE="reverse_BILLED_IN";
+CREATE DIRECTED EDGE NEXT (FROM Transaction, TO Transaction, interval_sec INT DEFAULT 0) WITH REVERSE_EDGE="reverse_NEXT";
 
-// ============================================================
-// EDGE TYPES
-// ============================================================
+CREATE DIRECTED EDGE CC_INVOLVES (FROM ClosedCase, TO Transaction) WITH REVERSE_EDGE="reverse_CC_INVOLVES";
+CREATE DIRECTED EDGE CC_ON_CARD (FROM ClosedCase, TO Card) WITH REVERSE_EDGE="reverse_CC_ON_CARD";
 
-CREATE DIRECTED EDGE PERFORMED_TRANSACTION (
-    FROM Account, TO Transaction,
-    txn_date    DATETIME,
-    channel     STRING DEFAULT "ONLINE"   // ONLINE | POS | ATM | MOBILE
-)
-
-CREATE DIRECTED EDGE USED_CARD (
-    FROM Transaction, TO Card,
-    usage_ts    DATETIME
-)
-
-CREATE DIRECTED EDGE USED_DEVICE (
-    FROM Transaction, TO Device,
-    session_id  STRING DEFAULT "",
-    usage_ts    DATETIME
-)
-
-CREATE DIRECTED EDGE USED_IP (
-    FROM Transaction, TO IP_Address,
-    usage_ts    DATETIME,
-    request_cnt INT DEFAULT 1
-)
-
-CREATE DIRECTED EDGE USED_EMAIL (
-    FROM Account, TO Email_Domain,
-    registered_ts DATETIME
-)
-
-CREATE DIRECTED EDGE LINKED_TO_CASE (
-    FROM Account,    TO Case,
-    link_reason STRING DEFAULT "",
-    link_ts     DATETIME
-)
-
-CREATE DIRECTED EDGE TXN_LINKED_TO_CASE (
-    FROM Transaction, TO Case,
-    link_reason STRING DEFAULT "",
-    link_ts     DATETIME
-)
-
-CREATE DIRECTED EDGE ASSOCIATED_WITH_PATTERN (
-    FROM Case, TO Fraud_Pattern,
-    confidence  FLOAT   DEFAULT 0.0,
-    detected_at DATETIME
-)
-
-// Undirected: shared identity link between accounts / cards / IPs
-CREATE UNDIRECTED EDGE SHARED_IDENTITY (
-    FROM Account,  TO Account,
-    shared_attr    STRING DEFAULT "",   // CARD | DEVICE | IP | EMAIL
-    first_seen     DATETIME,
-    link_count     INT    DEFAULT 1
-)
+CREATE DIRECTED EDGE CASE_INVOLVES (FROM Case, TO Transaction) WITH REVERSE_EDGE="reverse_CASE_INVOLVES";
+CREATE DIRECTED EDGE CASE_ON_CARD (FROM Case, TO Card) WITH REVERSE_EDGE="reverse_CASE_ON_CARD";
+CREATE DIRECTED EDGE CASE_SIMILAR_TO (FROM Case, TO ClosedCase, similarity FLOAT DEFAULT 0.0) WITH REVERSE_EDGE="reverse_CASE_SIMILAR_TO";
+CREATE UNDIRECTED EDGE CASE_SIMILAR_CASE (FROM Case, TO Case, similarity FLOAT DEFAULT 0.0);

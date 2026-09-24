@@ -1,0 +1,101 @@
+{
+  "case_id": "HHG-010",
+  "case": {
+    "status": "closed_fraud",
+    "verdict": "fraud",
+    "fraud_probability": 0.95,
+    "pattern": "card_not_present_new_device",
+    "pattern_description": "",
+    "affected_txn_ids": [
+      "3506725"
+    ],
+    "first_suspicious_txn_id": "3506725",
+    "connected_card_ids": [],
+    "connected_device_profiles": [],
+    "exposure_usd": 1000.03,
+    "evidence": [
+      {
+        "claim": "Abnormal spend spike of $1000.03 (7.7x average, previous max $670.04)",
+        "source": "graph",
+        "ref": "query:card_history(customer_id=C10434)",
+        "entity_ids": [
+          "3506725"
+        ]
+      },
+      {
+        "claim": "Transaction originated from a new unrecognized device profile (Windows | Windows 10 | edge 16.0 | 1366x)",
+        "source": "graph",
+        "ref": "query:device_profile(txn_id=3506725)",
+        "entity_ids": [
+          "3506725"
+        ]
+      }
+    ],
+    "similar_prior_cases": [
+      "CC-0011",
+      "CC-0018",
+      "CC-0019"
+    ],
+    "summary": "The investigation concludes that transaction 3506725 was a confirmed compromise, not an authorized cardholder spend, and is classified as fraud under the “card‑not‑present / new device” pattern. Evidence includes a $1,000.03 out‑of‑bounds purchase initiated from a device never seen in the customer’s historical profile, with no linked or connected cards and no legitimate customer response to outreach. Accordingly, the card (C10434‑K1) has been blocked, a case has been opened, and a regulatory fraud report has been filed per bank policy.",
+    "written_to_graph": true,
+    "graph_case_id": "HHG-010"
+  },
+  "evidence_requests": [
+    {
+      "type": "customer_validation",
+      "asked_after_step": 2,
+      "assumed_response": "Customer states they did not recognize the charge and have not shared their card credentials."
+    }
+  ],
+  "next_best_actions": {
+    "initial": [
+      {
+        "action": "DECLINE_TRANSACTION",
+        "route": "L1",
+        "reason": "R1: Elevated fraud probability on flagged authorization; decline pending inquiry"
+      },
+      {
+        "action": "STEP_UP_AUTH",
+        "route": "auto",
+        "reason": "R1: Require step-up passcode/auth before allowing further activity"
+      }
+    ],
+    "final": [
+      {
+        "action": "BLOCK_CARD",
+        "route": "L1",
+        "reason": "R2: Customer denied transaction; exposure $1000.03 (L1 <= $2,500)"
+      },
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "R2: Customer denied transaction; open case and record to graph"
+      },
+      {
+        "action": "FILE_REPORT",
+        "route": "L2",
+        "reason": "R2/R6: Regulatory report required (exposure > $1,000)"
+      }
+    ],
+    "what_changed": "Customer denial confirmed fraudulent activity, elevating fraud probability to 0.95. Pre-evidence monitoring escalated to immediate BLOCK_CARD, CREATE_CASE, and FILE_REPORT."
+  },
+  "sar": {
+    "file": true,
+    "reason": "Regulatory filing required under Policy R2/R6: Confirmed unauthorized activity with exposure $1,000.03",
+    "narrative": "Between 2016-12-02 and 2016-12-02, suspicious transaction activity was detected on card C10434-K1 belonging to customer C10434, totaling $1,000.03 USD across 1 transaction(s). The unauthorized transactions were conducted primarily through the online channel, exhibiting characteristics consistent with card not present new device. Activity originated from digital profile 'Windows | Windows 10 | edge 16.0 | 1366x768', which was flagged for abnormal configuration anomalies.  The cardholder, when contacted for validation, reported unrecognized charges and confirmed they remained in physical possession of their card. The rapid occurrence of unusual transactions and mismatch with historical cardholder behavior indicate potential credential compromise and organized abuse. The affected card has been blocked and marked for replacement to mitigate further exposure, and linked entities have been placed under elevated fraud monitoring.",
+    "subjects": [
+      "C10434",
+      "C10434-K1"
+    ],
+    "total_amount_usd": 1000.03,
+    "activity_dates": [
+      "2016-12-02",
+      "2016-12-02"
+    ]
+  },
+  "stop_reason": "Definitive evidence of compromise obtained; protective actions and report executed.",
+  "tool_calls": 10,
+  "tokens": 1770,
+  "latency_s": 10.29,
+  "offline_dev": true
+}

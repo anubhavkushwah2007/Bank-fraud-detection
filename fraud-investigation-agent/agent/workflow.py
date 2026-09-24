@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -73,24 +74,33 @@ def trigger_node(state: FraudAgentState) -> FraudAgentState:
     trigger = state["trigger"]
     case_id = state["case_id"]
     logger.info(f"[TRIGGER] Opening case {case_id} for card {trigger.card_id}")
+    get_rate_limited_llm().reset_case_tokens()
 
     client = get_graph_client()
-    client.upsert_case(case_id, {
+
+    ok, vid = client.upsert_case({
+        "case_id": case_id,
         "status": CaseStatus.OPEN.value,
-        "initial_risk": trigger.initial_risk,
-        "opened_at": trigger.opened_at,
+        "verdict": CaseVerdict.UNCERTAIN.value,
+        "fraud_probability": float(trigger.risk_score or 0.5),
         "card_id": trigger.card_id,
         "customer_id": trigger.customer_id,
         "flagged_txn_id": trigger.flagged_txn_id,
+        "opened_at": trigger.opened_at,
+        "summary": f"Case opened via {trigger.trigger_type.value} trigger for transaction {trigger.flagged_txn_id}.",
     })
+    if not ok:
+        logger.warning(f"[TRIGGER] Stage 1 write-back failed for {case_id}")
 
     audit = AuditEvent(
         stage="TRIGGER",
         event="CASE_OPENED",
-        detail=f"Trigger: {trigger.trigger_type.value}, score={trigger.risk_score}, flagged_txn={trigger.flagged_txn_id}",
+        detail=f"Trigger: {trigger.trigger_type.value}, score={trigger.risk_score}, flagged_txn={trigger.flagged_txn_id}, graph_saved={ok}",
     )
     return {
         **state,
+        "written_to_graph": ok,
+        "graph_case_id": vid if ok else "",
         "tool_calls_count": state.get("tool_calls_count", 0) + 1,
         "audit_trail": state.get("audit_trail", []) + [audit],
     }
@@ -192,17 +202,35 @@ def gather_evidence_node(state: FraudAgentState) -> FraudAgentState:
     elif ge.out_of_region_detected:
         candidate_pat = "out_of_region_use"
 
-    similar_case_ids = ms.find_similar_cases(pattern=candidate_pat, top_k=2)
+    client = get_graph_client()
+    similar_cases_records = client.find_similar_cases(pattern=candidate_pat, amount_band=float(ge.raw_query_results.get("TransactionAmt", 0.0)), top_k=3)
+    similar_case_ids = [c["case_id"] for c in similar_cases_records]
     tool_calls += 1
+
+    # Stage 2: Evidence Added
+    ok, vid = client.upsert_case({
+        "case_id": state["case_id"],
+        "status": "evidence_added",
+        "verdict": "in_review",
+        "card_id": trigger.card_id,
+        "customer_id": trigger.customer_id,
+        "flagged_txn_id": trigger.flagged_txn_id,
+        "connected_card_ids": ge.connected_cards,
+        "similar_prior_cases": similar_case_ids,
+        "summary": f"Evidence extracted: {len(ge.connected_cards)} connected card(s), {len(similar_case_ids)} matching precedent(s).",
+    })
 
     audit = AuditEvent(
         stage="GATHER_EVIDENCE",
         event="MEMORY_RETRIEVAL_COMPLETE",
-        detail=f"Retrieved similar cases: {similar_case_ids}",
+        detail=f"Retrieved similar cases: {similar_case_ids}, graph_updated={ok}",
     )
     return {
         **state,
         "similar_cases": similar_case_ids,
+        "similar_case_records": similar_cases_records,
+        "written_to_graph": ok or state.get("written_to_graph", False),
+        "graph_case_id": vid if ok else state.get("graph_case_id", ""),
         "tool_calls_count": tool_calls,
         "audit_trail": state.get("audit_trail", []) + [audit],
     }
@@ -214,124 +242,210 @@ def gather_evidence_node(state: FraudAgentState) -> FraudAgentState:
 
 def assess_risk_node(state: FraudAgentState) -> FraudAgentState:
     """
-    Synthesize graph signals into a calibrated fraud probability and pattern.
-    Adheres strictly to the specification requirement that ~50% of cases are legitimate!
+    Synthesize graph signals into a calibrated fraud probability and pattern
+    computed purely from empirical data:
+    - Card history spend range (mean, max, ratio)
+    - New device (id_15 == "New"), proxy (id_23), shared device rings
+    - Billing region vs. card's historical region (Policy R4)
+    - Rapid small authorizations before larger purchase (Policy R5)
+    - Closed-case memory similarity
     """
     trigger = state["trigger"]
     ge = state.get("graph_evidence", GraphEvidence())
+    ms = get_memory_store()
     tool_calls = state.get("tool_calls_count", 0)
 
     flagged_txn = trigger.flagged_txn_id
     flagged_amt = ge.raw_query_results.get("TransactionAmt", 0.0)
+    raw_q = ge.raw_query_results
+    card_txns = get_graph_client().get_card_history(trigger.customer_id, trigger.card_id)
+    tool_calls += 1
 
-    # Defaults
-    fp = trigger.initial_risk
-    pattern = FraudPattern.NONE
-    pattern_desc = ""
-    is_legit = False
-    affected_txns = [flagged_txn]
-    exposure = flagged_amt
-    first_suspicious = flagged_txn
     evidence_claims: List[EvidenceItem] = []
 
-    # ── PATTERN 1: Card testing (Policy R5) ───────────────────────────────────
-    if ge.testing_pattern_detected and len(ge.testing_sequence_txns) >= 3:
-        fp = 0.88
-        pattern = FraudPattern.CARD_TESTING
-        affected_txns = ge.testing_sequence_txns
-        exposure = sum(
-            float(t.get("TransactionAmt", 0.0))
-            for t in get_graph_client().get_card_history(trigger.customer_id)
-            if t.get("TransactionID") in affected_txns
-        ) or flagged_amt
-        first_suspicious = affected_txns[0] if affected_txns else flagged_txn
+    # 1. Historical card profile metrics
+    prior_amts = [t["TransactionAmt"] for t in card_txns if str(t.get("TransactionID")) != str(flagged_txn)]
+    n_hist = len(prior_amts)
+    mean_amt = (sum(prior_amts) / n_hist) if n_hist > 0 else flagged_amt
+    max_amt = max(prior_amts) if n_hist > 0 else flagged_amt
+    amt_ratio = (flagged_amt / (mean_amt + 1e-4)) if mean_amt > 0 else 1.0
+
+    # 2. Extract empirical signals from data
+    is_new_device = ge.new_device_detected or (raw_q.get("id_15") == "New")
+    is_found_device = (raw_q.get("id_15") == "Found")
+    is_proxy = ge.proxy_detected
+    has_shared_ring = len(ge.connected_cards) > 0
+    is_testing = ge.testing_pattern_detected
+    is_oor = ge.out_of_region_detected
+
+    # 3. Base Prior logit from risk score or neutral trigger
+    # Model score is only one input among many
+    if trigger.trigger_type == TriggerType.RISK_SCORE and trigger.risk_score is not None:
+        p0 = max(0.05, min(0.95, float(trigger.risk_score)))
+        z = math.log(p0 / (1.0 - p0))
+    else:
+        z = 0.0  # Neutral prior for customer reports and analyst inquiries
+
+    # 4. Evidence-based Log-Odds Adjustments:
+    # A. Card History Window & Amount relative to normal range
+    if n_hist >= 5:
+        if flagged_amt <= mean_amt and flagged_amt <= max_amt:
+            z -= 1.8  # Strong legitimate indicator: routine spend well within normal cardholder bounds
+            evidence_claims.append(EvidenceItem(
+                claim=f"Flagged amount ${flagged_amt:.2f} is well within cardholder historical average of ${mean_amt:.2f} (max ${max_amt:.2f})",
+                source="graph",
+                ref=f"query:card_history(customer_id={trigger.customer_id})",
+                entity_ids=[flagged_txn],
+            ))
+        elif flagged_amt <= 1.5 * mean_amt and flagged_amt <= max_amt:
+            z -= 0.8  # Routine spend
+        elif flagged_amt > 2.0 * max_amt or (mean_amt > 0 and amt_ratio > 3.0 and flagged_amt > max_amt):
+            z += 2.2  # Massive unprecedented spend spike
+            evidence_claims.append(EvidenceItem(
+                claim=f"Abnormal spend spike of ${flagged_amt:.2f} ({amt_ratio:.1f}x average, previous max ${max_amt:.2f})",
+                source="graph",
+                ref=f"query:card_history(customer_id={trigger.customer_id})",
+                entity_ids=[flagged_txn],
+            ))
+        elif mean_amt > 0 and amt_ratio > 2.0:
+            z += 1.0
+
+    # B. Device Footprint
+    if is_new_device:
+        z += 1.5
         evidence_claims.append(EvidenceItem(
-            claim=f"Sequence of {len(affected_txns)-1} small authorizations under $5 followed by larger purchase",
+            claim=f"Transaction originated from a new unrecognized device profile ({ge.device_profile_str[:40]})",
             source="graph",
-            ref=f"query:card_history(customer_id={trigger.customer_id})",
-            entity_ids=affected_txns
+            ref=f"query:device_profile(txn_id={flagged_txn})",
+            entity_ids=[flagged_txn],
+        ))
+    elif is_found_device:
+        z -= 1.4  # Known cardholder device
+
+    if is_proxy:
+        z += 1.8
+        evidence_claims.append(EvidenceItem(
+            claim="Transaction routed through an anonymizing proxy",
+            source="graph",
+            ref=f"query:network_attributes(txn_id={flagged_txn})",
+            entity_ids=[flagged_txn],
         ))
 
-    # ── PATTERN 2: Shared origin / Analyst request (Policy R6 / HHG-014) ─────
-    elif trigger.trigger_type == TriggerType.ANALYST_REQUEST or (len(ge.connected_cards) > 0 and ge.proxy_detected):
-        fp = 0.90
-        pattern = FraudPattern.CARD_NOT_PRESENT_NEW_DEVICE if ge.new_device_detected else FraudPattern.UNDOCUMENTED
-        if pattern == FraudPattern.UNDOCUMENTED:
-            pattern_desc = "Coordinated multi-card exploitation originating from identical device profile with anonymous proxy disguise."
+    # C. Shared Device Ring across cards (computed dynamically from data)
+    if has_shared_ring:
+        z += 2.8
         evidence_claims.append(EvidenceItem(
-            claim=f"Device profile {ge.device_profile_str[:40]} shared with connected cards {', '.join(ge.connected_cards[:3])}",
+            claim=f"Device profile linked across {len(ge.connected_cards)} other card(s) in compromise cluster: {', '.join(ge.connected_cards[:3])}",
             source="graph",
             ref=f"query:shared_entities(card_id={trigger.card_id})",
-            entity_ids=ge.connected_cards + [flagged_txn]
+            entity_ids=ge.connected_cards + [flagged_txn],
         ))
 
-    # ── PATTERN 3: Customer Report ───────────────────────────────────────────
-    elif trigger.trigger_type == TriggerType.CUSTOMER_REPORT:
-        # Check if customer report is on routine or recurring purchase
-        # HHG-003, HHG-008, HHG-009, HHG-018: Check amount and historical familiarity
-        if flagged_amt < 60.0 and not ge.new_device_detected and not ge.proxy_detected:
-            # Recurring charge / low anomaly dispute -> Policy R7 candidate (legitimate / cleared)
-            fp = 0.25
-            is_legit = True
-            pattern = FraudPattern.NONE
-            evidence_claims.append(EvidenceItem(
-                claim=f"Customer questioned ${flagged_amt:.2f} charge, but transaction attributes match regular billing history without device anomalies",
-                source="customer",
-                ref=f"trigger:customer_report(txn_id={flagged_txn})",
-                entity_ids=[flagged_txn]
-            ))
-        else:
-            # Clear unauthorized customer report with new device / unusual amount (HHG-004, HHG-006, HHG-011, HHG-016)
-            fp = 0.82
-            pattern = FraudPattern.CARD_NOT_PRESENT_NEW_DEVICE if ge.new_device_detected else FraudPattern.CARD_NOT_PRESENT_FRAUD
-            evidence_claims.append(EvidenceItem(
-                claim=f"Customer reported unauthorized charge of ${flagged_amt:.2f} from unrecognized digital footprint",
-                source="customer",
-                ref=f"trigger:customer_report(txn_id={flagged_txn})",
-                entity_ids=[flagged_txn]
-            ))
+    # D. Billing Region Anomaly (Policy R4)
+    if is_oor:
+        z += 1.5
+        evidence_claims.append(EvidenceItem(
+            claim=f"Out-of-region activity detected: billing region {ge.current_region} not present in customer history (modal {ge.normal_region})",
+            source="graph",
+            ref=f"query:detect_out_of_region(customer_id={trigger.customer_id})",
+            entity_ids=[flagged_txn],
+        ))
+    elif n_hist >= 5 and not is_oor:
+        z -= 0.6  # Domestic home billing region consistency
 
-    # ── PATTERN 4: Risk Score Triggers (Calibrated) ───────────────────────────
+    # E. Rapid Small Authorizations before larger purchase (Policy R5)
+    if is_testing:
+        z += 3.5
+        evidence_claims.append(EvidenceItem(
+            claim=f"Card testing sequence confirmed: {len(ge.testing_sequence_txns)-1} micro-authorizations under $5 within 1 hour before purchase",
+            source="graph",
+            ref=f"query:card_history(customer_id={trigger.customer_id})",
+            entity_ids=ge.testing_sequence_txns,
+        ))
+
+    # F. Closed-Case Similarity (Memory Store)
+    sim_records = state.get("similar_case_records", [])
+    if sim_records:
+        n_sim = len(sim_records)
+        n_fraud = sum(1 for c in sim_records if c.get("outcome") in ("confirmed_fraud", "fraud"))
+        n_cleared = sum(1 for c in sim_records if c.get("outcome") in ("cleared", "legitimate"))
+        evidence_claims.append(EvidenceItem(
+            claim=f"{n_sim} similar closed cases: {n_fraud} confirmed_fraud, {n_cleared} cleared",
+            source="memory",
+            ref="query:similar_closed_cases",
+            entity_ids=[c["case_id"] for c in sim_records],
+        ))
+        fraud_ratio = n_fraud / n_sim if n_sim > 0 else 0.5
+        if fraud_ratio >= 0.70:
+            z += 0.4
+        elif fraud_ratio <= 0.30:
+            z -= 0.4
+
+    # G. LLM Evidence Synthesis: synthesize primary signals into an evidence claim
+    try:
+        synth_prompt = (
+            f"You are a bank fraud investigator. In ONE short, factual sentence, synthesize the following evidence: "
+            f"Customer {trigger.customer_id}, Card {trigger.card_id}, amount=${flagged_amt:.2f} ({amt_ratio:.1f}x normal), "
+            f"new_device={is_new_device}, proxy={is_proxy}, connected_cards={len(ge.connected_cards)}, "
+            f"card_testing={is_testing}, out_of_region={is_oor}. "
+            f"State whether this pattern indicates legitimate cardholder activity or unauthorized compromise."
+        )
+        synth_res = get_rate_limited_llm().invoke(synth_prompt, max_tokens=80, temperature=0.1)
+        if synth_res and len(synth_res) > 10:
+            evidence_claims.append(EvidenceItem(
+                claim=synth_res.strip().replace("\n", " "),
+                source="llm_synthesis",
+                ref="evidence_synthesis",
+                entity_ids=[flagged_txn],
+            ))
+    except Exception as e:
+        logger.debug(f"LLM evidence synthesis error: {e}")
+
+    # 5. Sigmoid Link: compute fraud probability
+
+    fp = 1.0 / (1.0 + math.exp(-z))
+    is_legit = (fp < 0.50)
+
+    # Calibrate probability output range for policy engine
+    if is_legit:
+        fp = min(0.35, max(0.05, fp))
     else:
-        # Model risk score alone is an input, not a verdict!
-        # Many cases (HHG-001, HHG-005, HHG-012, HHG-017, HHG-020) are legitimate false alarms
-        if trigger.case_id in ("HHG-001", "HHG-005", "HHG-012", "HHG-020"):
-            # Legitimate cardholder travel / routine purchase
-            fp = min(0.35, trigger.initial_risk * 0.5)
-            is_legit = True
-            pattern = FraudPattern.NONE
-            evidence_claims.append(EvidenceItem(
-                claim=f"Model risk score {trigger.risk_score} in billing region {ge.current_region or 'domestic'} consistent with routine cardholder activity",
-                source="graph",
-                ref=f"query:card_history(card_id={trigger.card_id})",
-                entity_ids=[flagged_txn]
-            ))
-        elif trigger.case_id in ("HHG-002", "HHG-007", "HHG-010", "HHG-015", "HHG-019"):
-            # High risk score with corroborating anomalies
-            fp = max(0.78, trigger.initial_risk)
-            if ge.new_device_detected:
-                pattern = FraudPattern.CARD_NOT_PRESENT_NEW_DEVICE
-            elif ge.out_of_region_detected:
-                pattern = FraudPattern.OUT_OF_REGION_USE
-            else:
-                pattern = FraudPattern.CARD_NOT_PRESENT_FRAUD
-            evidence_claims.append(EvidenceItem(
-                claim=f"Model score {trigger.risk_score} corroborates abnormal spend burst and channel anomaly",
-                source="graph",
-                ref=f"query:card_history(card_id={trigger.card_id})",
-                entity_ids=[flagged_txn]
-            ))
-        else:
-            # Moderate
-            fp = 0.45
-            is_legit = (fp < 0.50)
-            pattern = FraudPattern.NONE if is_legit else FraudPattern.CARD_NOT_PRESENT_FRAUD
+        fp = min(0.95, max(0.75, fp))
 
-    # If legitimate, zero out affected txns & exposure per spec
+    # 6. Typology classification from evidence
+    pattern_desc = ""
+    if is_testing:
+        pattern = FraudPattern.CARD_TESTING
+    elif has_shared_ring and is_new_device:
+        pattern = FraudPattern.CARD_NOT_PRESENT_NEW_DEVICE
+    elif has_shared_ring and is_proxy:
+        pattern = FraudPattern.CARD_NOT_PRESENT_NEW_DEVICE
+    elif is_new_device:
+        pattern = FraudPattern.CARD_NOT_PRESENT_NEW_DEVICE
+    elif is_oor and not is_legit:
+        pattern = FraudPattern.OUT_OF_REGION_USE
+    elif not is_legit:
+        pattern = FraudPattern.CARD_NOT_PRESENT_FRAUD
+    else:
+        pattern = FraudPattern.NONE
+
+    # Exposure and affected txns
     if is_legit:
         affected_txns = []
         exposure = 0.0
         first_suspicious = ""
+    elif is_testing and len(ge.testing_sequence_txns) >= 3:
+        affected_txns = ge.testing_sequence_txns
+        exposure = sum(
+            float(t.get("TransactionAmt", 0.0))
+            for t in card_txns
+            if str(t.get("TransactionID")) in affected_txns
+        ) or flagged_amt
+        first_suspicious = affected_txns[0] if affected_txns else flagged_txn
+    else:
+        affected_txns = [flagged_txn]
+        exposure = flagged_amt
+        first_suspicious = flagged_txn
 
     risk = RiskAssessment(
         fraud_probability=round(fp, 4),
@@ -344,7 +458,7 @@ def assess_risk_node(state: FraudAgentState) -> FraudAgentState:
         connected_card_ids=ge.connected_cards,
         exposure_usd=round(exposure, 2),
         evidence_claims=evidence_claims,
-        reasoning=f"Assessment for case {trigger.case_id}: calibrated fp={fp:.2f}, pattern={pattern.value}.",
+        reasoning=f"Evidence-based scoring for card {trigger.card_id} on transaction {trigger.flagged_txn_id}: z={z:+.2f}, fp={fp:.2f}, pattern={pattern.value}.",
     )
 
     audit = AuditEvent(
@@ -372,14 +486,31 @@ def pre_nba_node(state: FraudAgentState) -> FraudAgentState:
 
     initial_actions = compute_initial_actions(trigger, ge, risk)
 
+    # Stage 3: Initial Recommendation
+    client = get_graph_client()
+    init_act = initial_actions[0] if initial_actions else None
+    ok, vid = client.upsert_case({
+        "case_id": state["case_id"],
+        "status": "initial_recommendation",
+        "verdict": state["case_verdict"].value,
+        "fraud_probability": risk.fraud_probability,
+        "pattern": risk.likely_pattern.value,
+        "exposure_usd": risk.exposure_usd,
+        "card_id": trigger.card_id,
+        "customer_id": trigger.customer_id,
+        "summary": f"Initial recommendation: {init_act.action if init_act else 'NONE'}. Rationale: {init_act.reason if init_act else ''}",
+    })
+
     audit = AuditEvent(
         stage="PRE_NBA",
         event="INITIAL_ACTIONS_FORMULATED",
-        detail=f"Initial actions: {[a.action for a in initial_actions]}",
+        detail=f"Initial actions: {[a.action for a in initial_actions]}, graph_updated={ok}",
     )
     return {
         **state,
         "initial_actions": initial_actions,
+        "written_to_graph": ok or state.get("written_to_graph", False),
+        "graph_case_id": vid if ok else state.get("graph_case_id", ""),
         "audit_trail": state.get("audit_trail", []) + [audit],
     }
 
@@ -398,14 +529,26 @@ def extra_evidence_node(state: FraudAgentState) -> FraudAgentState:
     ev_req = simulate_evidence_request(trigger, init_acts, ge, risk)
     ev_requests = [ev_req] if ev_req else []
 
+    # Stage 4: Evidence Request
+    client = get_graph_client()
+    ok, vid = client.upsert_case({
+        "case_id": state["case_id"],
+        "status": "evidence_requested",
+        "card_id": trigger.card_id,
+        "customer_id": trigger.customer_id,
+        "summary": f"Inquiry: {ev_req.type if ev_req else 'None'} -> Response: {ev_req.assumed_response[:40] if ev_req else ''}",
+    })
+
     audit = AuditEvent(
         stage="EXTRA_EVIDENCE",
         event="EVIDENCE_REQUEST_SIMULATED",
-        detail=f"Requested: {ev_req.type if ev_req else 'None'}, response: {ev_req.assumed_response[:30] if ev_req else ''}",
+        detail=f"Requested: {ev_req.type if ev_req else 'None'}, response: {ev_req.assumed_response[:30] if ev_req else ''}, graph_updated={ok}",
     )
     return {
         **state,
         "evidence_requests": ev_requests,
+        "written_to_graph": ok or state.get("written_to_graph", False),
+        "graph_case_id": vid if ok else state.get("graph_case_id", ""),
         "audit_trail": state.get("audit_trail", []) + [audit],
     }
 
@@ -422,7 +565,10 @@ def post_nba_node(state: FraudAgentState) -> FraudAgentState:
     ev_reqs = state.get("evidence_requests", [])
     ev_req = ev_reqs[0] if ev_reqs else None
 
-    final_actions, what_changed, sar_required = compute_final_actions(trigger, ge, risk, ev_req)
+    final_actions, what_changed, sar_required = compute_final_actions(
+        trigger, ge, risk, ev_req, state.get("initial_actions", [])
+    )
+
 
     # Determine final verdict and status
     has_close_no_fraud = any(a.action == PolicyAction.CLOSE_NO_FRAUD.value for a in final_actions)
@@ -460,9 +606,70 @@ def post_nba_node(state: FraudAgentState) -> FraudAgentState:
     }
 
 
-# ============================================================
-# Node 8: SAR & Explainability Node
-# ============================================================
+def generate_analyst_summary_with_llm(
+    trigger: TriggerEvent,
+    risk: RiskAssessment,
+    evidence: GraphEvidence,
+    verdict: CaseVerdict,
+    final_actions: List[ActionItem],
+) -> str:
+    """Generate 2-4 sentence internal analyst summary using LLM."""
+    pat_name = risk.likely_pattern.value if hasattr(risk.likely_pattern, "value") else str(risk.likely_pattern)
+    prompt = f"""You are a bank fraud investigation specialist writing a concise case summary for a fraud analyst.
+
+FACTS:
+- Customer ID: {trigger.customer_id}
+- Card ID: {trigger.card_id}
+- Flagged Transaction: {trigger.flagged_txn_id}
+- Verdict: {verdict.value}
+- Pattern: {pat_name}
+- Total Exposure: ${risk.exposure_usd:,.2f}
+- Affected Transaction IDs: {', '.join(risk.affected_txn_ids) if risk.affected_txn_ids else 'None'}
+- Connected Cards: {', '.join(evidence.connected_cards) if evidence.connected_cards else 'None'}
+- Final Actions: {', '.join([a.action for a in final_actions])}
+
+INSTRUCTIONS:
+Write a concise 2 to 4 sentence executive summary of this investigation.
+1. State the final determination and whether the transaction was authorized cardholder spend or confirmed compromise.
+2. Highlight key evidence (spend bounds, device profile, customer outreach response, or multi-card linkages).
+3. State the concluding actions taken under bank policy (e.g. card blocked for reissue, case cleared, or report filed).
+
+OUTPUT RULES:
+- Exactly 2 to 4 sentences in a single paragraph.
+- Professional bank compliance tone.
+- Do NOT use bullet points or headers.
+"""
+    try:
+        llm = get_rate_limited_llm()
+        content = llm.invoke(prompt, max_tokens=250, temperature=0.1)
+        sentences = [s.strip() for s in content.split(".") if s.strip()]
+        if len(sentences) >= 2:
+            return content.strip().replace("\n", " ")
+    except Exception as e:
+        logger.warning(f"LLM analyst summary generation failed: {e}")
+
+    # Deterministic fallback
+    if verdict == CaseVerdict.LEGITIMATE:
+        return (
+            f"Alert on card {trigger.card_id} for transaction {trigger.flagged_txn_id} was reviewed and cleared. "
+            f"Customer verification confirmed the activity was authorized cardholder spend. "
+            f"Historical spend consistency in billing region confirms lack of compromise. "
+            f"Alert resolved under Policy R3 as closed legitimate with zero exposure."
+        )
+    elif verdict == CaseVerdict.FRAUD:
+        return (
+            f"Investigation confirmed fraudulent activity on card {trigger.card_id} under pattern {pat_name}. "
+            f"Total exposure of ${risk.exposure_usd:,.2f} identified across {len(risk.affected_txn_ids)} transaction(s). "
+            f"Cardholder denial established unauthorized card usage from digital fingerprint. "
+            f"Card blocked for reissue and regulatory report filed under Policy R2."
+        )
+    else:
+        return (
+            f"Investigation of transaction {trigger.flagged_txn_id} on card {trigger.card_id} yielded ambiguous signals. "
+            f"Exposure of ${risk.exposure_usd:,.2f} exceeds threshold without decisive evidence confirmation. "
+            f"Case escalated to Level 2 fraud analyst for manual review under Policy R8."
+        )
+
 
 def sar_explainability_node(state: FraudAgentState) -> FraudAgentState:
     """Produce FinCEN SAR draft if FILE_REPORT is required, and 2-6 sentence summary."""
@@ -479,27 +686,13 @@ def sar_explainability_node(state: FraudAgentState) -> FraudAgentState:
         final_actions=fin_acts,
     )
 
-    # Generate 2-6 sentence summary for internal analyst
-    if verdict == CaseVerdict.LEGITIMATE:
-        summary = (
-            f"Alert on card {trigger.card_id} for transaction {trigger.flagged_txn_id} was reviewed and cleared. "
-            f"Customer verification confirmed the activity was authorized cardholder spend. "
-            f"Historical spend consistency in billing region confirms lack of compromise. "
-            f"Alert resolved under Policy R3 as closed legitimate with zero exposure."
-        )
-    elif verdict == CaseVerdict.FRAUD:
-        summary = (
-            f"Investigation confirmed fraudulent activity on card {trigger.card_id} under pattern {risk.likely_pattern.value}. "
-            f"Total exposure of ${risk.exposure_usd:,.2f} identified across {len(risk.affected_txn_ids)} transaction(s). "
-            f"Cardholder denial established unauthorized card usage from digital fingerprint. "
-            f"Card blocked for reissue and regulatory report filed under Policy R2."
-        )
-    else:
-        summary = (
-            f"Investigation of transaction {trigger.flagged_txn_id} on card {trigger.card_id} yielded ambiguous signals. "
-            f"Exposure of ${risk.exposure_usd:,.2f} exceeds threshold without decisive evidence confirmation. "
-            f"Case escalated to Level 2 fraud analyst for manual review under Policy R8."
-        )
+    summary = generate_analyst_summary_with_llm(
+        trigger=trigger,
+        risk=risk,
+        evidence=ge,
+        verdict=verdict,
+        final_actions=fin_acts,
+    )
 
     # Stop reason
     if verdict == CaseVerdict.LEGITIMATE:
@@ -511,7 +704,7 @@ def sar_explainability_node(state: FraudAgentState) -> FraudAgentState:
 
     tokens = 0
     try:
-        tokens = get_rate_limited_llm().tokens_count.get(get_rate_limited_llm().active_model, 0)
+        tokens = get_rate_limited_llm().get_case_tokens()
     except Exception:
         pass
 
@@ -524,6 +717,7 @@ def sar_explainability_node(state: FraudAgentState) -> FraudAgentState:
     }
 
 
+
 # ============================================================
 # Node 9: Update Memory Node
 # ============================================================
@@ -531,19 +725,35 @@ def sar_explainability_node(state: FraudAgentState) -> FraudAgentState:
 def update_memory_node(state: FraudAgentState) -> FraudAgentState:
     """Persist case deliverable to TigerGraph and CaseMemoryStore."""
     case_id = state["case_id"]
+    trigger = state["trigger"]
     client = get_graph_client()
     ms = get_memory_store()
+
     tool_calls = state.get("tool_calls_count", 0)
 
+    # Stage 5: Final Recommendation & Memory Commit
     res_dict = state_to_result_dict(state)
-    client.upsert_case(case_id, res_dict["case"])
+    case_payload = dict(res_dict["case"])
+    case_payload["case_id"] = case_id
+    case_payload["card_id"] = trigger.card_id
+    case_payload["customer_id"] = trigger.customer_id
+    ok, vid = client.upsert_case(case_payload)
+    if not ok:
+        err_msg = f"Failed to persist case {case_id} to TigerGraph"
+        logger.error(f"[MEMORY] {err_msg}")
+        error_val = state.get("error") or err_msg
+    else:
+        error_val = state.get("error")
+
+
     ms.save_case(case_id, res_dict["case"])
     tool_calls += 2
 
     return {
         **state,
-        "written_to_graph": True,
-        "graph_case_id": f"CASE-2016-{state.get('flagged_txn_id', '')}",
+        "written_to_graph": ok,
+        "graph_case_id": vid if ok else "",
+        "error": error_val,
         "tool_calls_count": tool_calls,
     }
 
