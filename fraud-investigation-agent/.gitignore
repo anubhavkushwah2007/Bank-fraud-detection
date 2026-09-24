@@ -14,3 +14,4 @@ data/chroma_db/
 # OS junk
 .DS_Store
 data/*.csv
+data/*.parquet

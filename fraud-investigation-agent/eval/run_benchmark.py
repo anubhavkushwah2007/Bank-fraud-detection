@@ -1,16 +1,17 @@
 """
 eval/run_benchmark.py
 ──────────────────────
-Automated evaluation runner for all 20 HHGOA benchmark test cases.
+Official benchmark runner for all 20 Hacker House Goa exam cases from data/case_pack.csv.
 
 For each case:
-  1. Load the benchmark scenario from data/benchmark_cases/
-  2. Construct a mock graph state matching the scenario
-  3. Run the full agent lifecycle
-  4. Save structured result JSON to eval/results/
+  1. Load case details from data/case_pack.csv (TriggerType: risk_score, customer_report, analyst_request)
+  2. Execute the full fraud investigation lifecycle via LangGraph/sequential pipeline
+  3. Save answer file to cases/<case_id>.json (with authentic dataset IDs & 15 case fields)
+  4. Log execution metrics and remaining Groq rate-limit quota
+  5. Run anti-overflagging distribution sanity check across all 20 cases
 
 Usage:
-  python eval/run_benchmark.py [--case 001] [--all] [--verbose]
+  python eval/run_benchmark.py [--case HHG-001] [--all]
 """
 from __future__ import annotations
 
@@ -20,284 +21,194 @@ import logging
 import os
 import sys
 import time
-from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-# ─── Setup path ───────────────────────────────────────────────────────────────
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
-
+# ─── Ensure UTF-8 encoding for Windows consoles ───────────────────────────────
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
-logger = logging.getLogger("eval")
+logger = logging.getLogger("benchmark")
 
+import pandas as pd
+
+from agent.llm_client import get_rate_limited_llm
 from agent.state import (
-    GraphEvidence,
+    PolicyAction,
     TriggerEvent,
     TriggerType,
-    state_to_result_dict,
 )
-from agent.workflow import run_investigation
-from graph.tigergraph_client import MockFraudGraph
+from agent.workflow import run_investigation_sequential
 
-BENCHMARK_DIR = PROJECT_ROOT / "data" / "benchmark_cases"
-RESULTS_DIR   = PROJECT_ROOT / "eval" / "results"
-RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-
-
-# ============================================================
-# Case Loader
-# ============================================================
-
-def load_benchmark_case(case_path: Path) -> Dict[str, Any]:
-    """Load a single benchmark case from JSON."""
-    with open(case_path) as f:
-        return json.load(f)
+CASE_PACK_CSV = PROJECT_ROOT / "data" / "case_pack.csv"
+CASES_DIR     = PROJECT_ROOT / "cases"
+CASES_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def patch_mock_graph(scenario: Dict[str, Any]) -> None:
-    """
-    Inject the benchmark scenario into the MockFraudGraph so that
-    graph queries return scenario-specific evidence.
-    """
-    from graph.tigergraph_client import _mock_instance, MockFraudGraph
-    import graph.tigergraph_client as tg_module
+def load_all_cases() -> List[Dict[str, Any]]:
+    """Load all 20 cases from data/case_pack.csv."""
+    if not CASE_PACK_CSV.exists():
+        raise FileNotFoundError(f"case_pack.csv not found at {CASE_PACK_CSV}")
 
-    # Create fresh mock and patch it with scenario data
-    mock = MockFraudGraph()
-    tg_module._mock_instance = mock
-
-    gs = scenario.get("graph_scenario", {})
-    acct_id = scenario["initial_trigger"]["account_id"]
-
-    # Override detect_shared_entities to return scenario data
-    def _patched_shared(account_id, window_days=30):
-        return {
-            "shared_device_accounts": gs.get("shared_device_accounts", []),
-            "shared_ip_accounts":     gs.get("shared_ip_accounts", []),
-            "shared_card_accounts":   [],
-        }
-
-    def _patched_velocity(account_id, lookback_hours=72):
-        total = gs.get("sub_transactions") and len(gs["sub_transactions"]) or 5
-        amount = scenario["initial_trigger"]["amount"]
-        burst = gs.get("velocity_burst_score", 2.0)
-        return {
-            "total_txn_count":      total,
-            "total_amount":         amount,
-            "avg_txn_amount":       amount / max(total, 1),
-            "max_txn_amount":       amount,
-            "txn_per_hour":         burst / 3,
-            "unique_device_count":  2 if gs.get("new_device_detected") else 1,
-            "unique_ip_count":      1 + len(gs.get("shared_ip_accounts", [])),
-            "velocity_burst_score": burst,
-        }
-
-    def _patched_rings():
-        ring_size = gs.get("ring_size", 0)
-        members   = [acct_id] + gs.get("shared_device_accounts", [])[:ring_size-1]
-        return {
-            "components":          [{"component_id": "COMP_0", "members": members, "size": ring_size}] if ring_size >= 3 else [],
-            "total_components":    1 if ring_size >= 3 else 0,
-            "largest_ring_size":   ring_size,
-        }
-
-    def _patched_subgraph(account_id, hop=2):
-        nodes = [{"node_id": account_id, "node_type": "Account", "attributes": {"status": "ACTIVE", "risk_score_current": scenario["initial_trigger"]["initial_risk"]}}]
-        if gs.get("device_id"):
-            nodes.append({"node_id": gs["device_id"], "node_type": "Device",
-                          "attributes": {"risk_score": 0.85 if gs.get("new_device_detected") else 0.2,
-                                         "is_emulator": False}})
-        if gs.get("ip_address"):
-            nodes.append({"node_id": gs["ip_address"], "node_type": "IP_Address",
-                          "attributes": {"country": gs.get("ip_country", "US"),
-                                         "is_proxy": gs.get("ip_proxy", False)}})
-        edges = []
-        if len(nodes) > 1:
-            edges.append({"source": account_id, "target": nodes[1]["node_id"], "edge_type": "USED_DEVICE", "attributes": {}})
-        if len(nodes) > 2:
-            edges.append({"source": account_id, "target": nodes[2]["node_id"], "edge_type": "USED_IP", "attributes": {}})
-        return {"nodes": nodes, "edges": edges}
-
-    # Monkey-patch the mock instance
-    import types
-    mock.detect_shared_entities = _patched_shared
-    mock.trace_velocity         = _patched_velocity
-    mock.detect_fraud_rings     = _patched_rings
-    mock.get_subgraph           = _patched_subgraph
+    df = pd.read_csv(CASE_PACK_CSV)
+    cases = []
+    for _, row in df.iterrows():
+        score = float(row["risk_score"]) if pd.notna(row.get("risk_score")) and str(row.get("risk_score")).strip() else None
+        cases.append({
+            "case_id":        str(row["case_id"]).strip(),
+            "opened_at":      str(row["opened_at"]).strip(),
+            "trigger_type":   str(row["trigger_type"]).strip(),
+            "trigger_text":   str(row.get("trigger_text", "")).strip(),
+            "flagged_txn_id": str(int(row["flagged_txn_id"])).strip(),
+            "card_id":        str(row["card_id"]).strip(),
+            "customer_id":    str(row["customer_id"]).strip(),
+            "risk_score":     score,
+        })
+    return cases
 
 
-# ============================================================
-# Single Case Runner
-# ============================================================
+def run_single_case(case_info: Dict[str, Any]) -> Dict[str, Any]:
+    """Execute investigation on a single benchmark case."""
+    cid = case_info["case_id"]
+    logger.info(f"▶ Starting investigation for {cid} ({case_info['trigger_type']}) on card {case_info['card_id']}")
 
-def run_single_case(case_data: Dict[str, Any], verbose: bool = False) -> Dict[str, Any]:
-    """Run the fraud agent on a single benchmark case."""
-    trigger_data = case_data["initial_trigger"]
-    case_id      = case_data["case_id"]
+    tt_str = case_info["trigger_type"]
+    try:
+        tt_enum = TriggerType(tt_str)
+    except ValueError:
+        logger.warning(f"Unknown trigger type '{tt_str}', defaulting to RISK_SCORE")
+        tt_enum = TriggerType.RISK_SCORE
 
-    # Patch mock graph with scenario data
-    patch_mock_graph(case_data)
-
-    # Build trigger
     trigger = TriggerEvent(
-        case_id        = case_id,
-        account_id     = trigger_data["account_id"],
-        transaction_id = trigger_data.get("transaction_id"),
-        trigger_type   = TriggerType(trigger_data.get("trigger_type", "HIGH_RISK_SCORE")),
-        initial_risk   = float(trigger_data["initial_risk"]),
-        amount         = float(trigger_data.get("amount", 0.0)),
-        timestamp      = trigger_data.get("timestamp", datetime.utcnow().isoformat()),
+        case_id=cid,
+        card_id=case_info["card_id"],
+        customer_id=case_info["customer_id"],
+        trigger_type=tt_enum,
+        flagged_txn_id=case_info["flagged_txn_id"],
+        risk_score=case_info["risk_score"],
+        opened_at=case_info["opened_at"],
+        trigger_text=case_info["trigger_text"],
     )
 
     t0 = time.time()
-    final_state = run_investigation(trigger)
-    elapsed_ms  = round((time.time() - t0) * 1000)
+    result = run_investigation_sequential(trigger)
+    elapsed = time.time() - t0
+    result["latency_s"] = round(elapsed, 2)
 
-    # Serialise to result format
-    result = state_to_result_dict(final_state)
-    result["_benchmark"] = {
-        "case_file":         case_data.get("case_id"),
-        "typology":          case_data.get("typology"),
-        "elapsed_ms":        elapsed_ms,
-        "expected":          case_data.get("expected", {}),
-        "run_ts":            datetime.utcnow().isoformat(),
-    }
+    # Save to cases/<case_id>.json
+    out_file = CASES_DIR / f"{cid}.json"
+    with open(out_file, "w", encoding="utf-8") as f:
+        json.dump(result, f, indent=2, ensure_ascii=False)
 
-    # Score against expected
-    expected = case_data.get("expected", {})
-    post_act = result.get("post_evidence_recommendation", {})
-    score = {
-        "typology_match":  post_act.get("fraud_typology") == expected.get("fraud_typology"),
-        "sar_match":       result.get("sar_filing_required") == expected.get("sar_required"),
-        "action_match":    post_act.get("action") == expected.get("post_evidence_action"),
-    }
-    result["_score"] = score
-    pass_count = sum(1 for v in score.values() if v)
-    result["_pass_rate"] = f"{pass_count}/{len(score)}"
+    # Log quota and verdict summary
+    llm = get_rate_limited_llm()
+    rem = llm.calls_remaining
+    verdict = result["case"]["verdict"]
+    pattern = result["case"]["pattern"]
+    exposure = result["case"]["exposure_usd"]
+    sar_file = result["sar"]["file"]
+    final_actions = [a["action"] for a in result["next_best_actions"]["final"]]
 
-    if verbose:
-        print(f"\n  Case {case_id}:")
-        print(f"    Typology:  {post_act.get('fraud_typology')} (expected: {expected.get('fraud_typology')}) {'✓' if score['typology_match'] else '✗'}")
-        print(f"    Action:    {post_act.get('action')} (expected: {expected.get('post_evidence_action')}) {'✓' if score['action_match'] else '✗'}")
-        print(f"    SAR:       {result.get('sar_filing_required')} (expected: {expected.get('sar_required')}) {'✓' if score['sar_match'] else '✗'}")
-        print(f"    Score:     {result['_pass_rate']}  [{elapsed_ms}ms]")
-
+    logger.info(
+        f"✔ Completed {cid} in {elapsed:.1f}s | Verdict: {verdict.upper()} | "
+        f"Pattern: {pattern} | Exp: ${exposure:,.2f} | SAR: {sar_file} | "
+        f"Actions: {final_actions} | Quota Remaining: {rem}"
+    )
     return result
 
 
-# ============================================================
-# Full Benchmark Runner
-# ============================================================
+def sanity_check_distribution(results: List[Dict[str, Any]]) -> None:
+    """
+    Sanity pass on the generated answer files:
+    'Half the cases are legitimate... An agent that blocks everything scores badly.'
+    Warns if BLOCK_CARD or FILE_REPORT is over-recommended (>12 of 20).
+    """
+    total = len(results)
+    if total == 0:
+        return
 
-def run_all_cases(verbose: bool = False) -> List[Dict[str, Any]]:
-    """Run all 20 benchmark cases and save results."""
-    case_files = sorted(BENCHMARK_DIR.glob("HHG-*.json"))
+    verdicts: Dict[str, int] = {}
+    patterns: Dict[str, int] = {}
+    block_count = 0
+    sar_count = 0
+    legit_count = 0
 
-    if not case_files:
-        logger.warning(f"No benchmark cases found in {BENCHMARK_DIR}")
-        logger.info("Generating benchmark cases first...")
-        from data.generate_benchmark import generate_all_cases
-        generate_all_cases()
-        case_files = sorted(BENCHMARK_DIR.glob("HHG-*.json"))
+    for r in results:
+        v = r["case"]["verdict"]
+        p = r["case"]["pattern"]
+        verdicts[v] = verdicts.get(v, 0) + 1
+        patterns[p] = patterns.get(p, 0) + 1
 
-    results      = []
-    pass_counts  = []
-    total_score  = 0
+        actions = [a["action"] for a in r["next_best_actions"]["final"]]
+        if any("BLOCK" in a for a in actions):
+            block_count += 1
+        if r["sar"]["file"] or any(a == PolicyAction.FILE_REPORT.value for a in actions):
+            sar_count += 1
+        if v == "legitimate":
+            legit_count += 1
 
-    print(f"\n{'='*60}")
-    print(f"  HHGOA Fraud Agent — Benchmark Evaluation")
-    print(f"  Cases: {len(case_files)} | Mode: {'VERBOSE' if verbose else 'SUMMARY'}")
-    print(f"{'='*60}")
+    print("\n" + "=" * 65)
+    print("BENCHMARK DISTRIBUTION SANITY PASS (Anti-Overflagging Check)")
+    print("=" * 65)
+    print(f"Total Cases Evaluated:       {total}")
+    print(f"Verdicts:                    {verdicts}")
+    print(f"Patterns:                    {patterns}")
+    print(f"Cases with Legitimate:       {legit_count} ({legit_count/total:.0%})")
+    print(f"Cases Recommending BLOCK:    {block_count} ({block_count/total:.0%})")
+    print(f"Cases Recommending SAR File: {sar_count} ({sar_count/total:.0%})")
+    print("-" * 65)
 
-    for i, case_file in enumerate(case_files, 1):
-        case_data = load_benchmark_case(case_file)
-        case_id   = case_data.get("case_id", case_file.stem)
-        typology  = case_data.get("typology", "?")
-
-        if not verbose:
-            print(f"  [{i:02d}/20] Running {case_id} [{typology}]...", end=" ", flush=True)
-
-        try:
-            result = run_single_case(case_data, verbose=verbose)
-            results.append(result)
-
-            # Save result file
-            result_path = RESULTS_DIR / f"{case_id}_result.json"
-            with open(result_path, "w") as f:
-                json.dump(result, f, indent=2, default=str)
-
-            score_str = result.get("_pass_rate", "0/3")
-            passes    = int(score_str.split("/")[0])
-            pass_counts.append(passes)
-            total_score += passes
-
-            if not verbose:
-                print(f"✓ {score_str} [{result['_benchmark'].get('elapsed_ms', 0)}ms]")
-
-        except Exception as e:
-            logger.error(f"Case {case_id} FAILED: {e}", exc_info=True)
-            if not verbose:
-                print(f"✗ ERROR: {e}")
-            pass_counts.append(0)
-
-    # Summary
-    total_possible = len(case_files) * 3  # 3 metrics per case
-    overall_pct    = (total_score / max(total_possible, 1)) * 100
-
-    print(f"\n{'='*60}")
-    print(f"  BENCHMARK RESULTS")
-    print(f"  Cases Evaluated:  {len(results)}/20")
-    print(f"  Overall Score:    {total_score}/{total_possible} ({overall_pct:.1f}%)")
-    print(f"  Results saved to: {RESULTS_DIR}")
-    print(f"{'='*60}\n")
-
-    # Save summary
-    summary = {
-        "run_ts":          datetime.utcnow().isoformat(),
-        "total_cases":     len(case_files),
-        "completed":       len(results),
-        "total_score":     total_score,
-        "total_possible":  total_possible,
-        "overall_pct":     round(overall_pct, 2),
-        "case_pass_rates": [r.get("_pass_rate") for r in results],
-    }
-    with open(RESULTS_DIR / "benchmark_summary.json", "w") as f:
-        json.dump(summary, f, indent=2)
-
-    return results
+    if block_count > 12:
+        logger.warning(
+            f"⚠️ SANITY WARNING: {block_count}/{total} cases recommended BLOCK. "
+            "Competition specification warns: 'Half the cases are legitimate... An agent that blocks everything scores badly.' "
+            "Consider reviewing borderline cases."
+        )
+    else:
+        print(f"✅ SANITY CHECK PASSED: Balanced distribution ({legit_count} legitimate, {total - legit_count} fraud/uncertain).")
+    print("=" * 65 + "\n")
 
 
-# ============================================================
-# CLI
-# ============================================================
-
-def main() -> None:
-    parser = argparse.ArgumentParser(description="HHGOA Fraud Agent Benchmark Evaluator")
-    parser.add_argument("--case",    type=str, help="Run a single case by number (e.g. 001)")
-    parser.add_argument("--all",     action="store_true", default=True, help="Run all 20 cases")
-    parser.add_argument("--verbose", action="store_true", help="Verbose output per case")
+def main():
+    parser = argparse.ArgumentParser(description="HHGOA Fraud Investigation Benchmark Runner")
+    parser.add_argument("--case", type=str, default=None, help="Run specific case, e.g. HHG-001")
+    parser.add_argument("--all", action="store_true", default=True, help="Run all 20 cases")
     args = parser.parse_args()
 
+    all_cases = load_all_cases()
+    logger.info(f"Loaded {len(all_cases)} cases from {CASE_PACK_CSV}")
+
     if args.case:
-        num = args.case.upper().replace("HHG-", "").zfill(3)
-        case_file = BENCHMARK_DIR / f"HHG-{num}.json"
-        if not case_file.exists():
-            print(f"Case file not found: {case_file}")
+        target = [c for c in all_cases if c["case_id"] == args.case]
+        if not target:
+            logger.error(f"Case {args.case} not found!")
             sys.exit(1)
-        case_data = load_benchmark_case(case_file)
-        result    = run_single_case(case_data, verbose=True)
-        print(json.dumps(result, indent=2, default=str))
-    else:
-        run_all_cases(verbose=args.verbose)
+        res = run_single_case(target[0])
+        sanity_check_distribution([res])
+        return
+
+    # Run all 20 cases
+    results = []
+    print("\n" + "═" * 65)
+    print("  HHGOA FRAUD INVESTIGATION BENCHMARK — RUNNING 20 CASES")
+    print("═" * 65 + "\n")
+
+    for i, c in enumerate(all_cases, 1):
+        print(f"[{i:02d}/20] Processing {c['case_id']}...")
+        res = run_single_case(c)
+        results.append(res)
+
+    sanity_check_distribution(results)
+    print(f"All 20 answer files saved to {CASES_DIR}/")
 
 
 if __name__ == "__main__":
