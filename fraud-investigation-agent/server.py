@@ -75,7 +75,11 @@ def _check_tigergraph() -> Dict[str, Any]:
                 logger.warning(f"Live vertex count '*' query failed: {e}")
 
             if not counts:
-                for vt in ["Transaction", "Customer", "Card", "DeviceProfile", "EmailDomain", "BillingRegion", "ClosedCase", "Case"]:
+                try:
+                    vtypes = client.conn.getVertexTypes()
+                except Exception:
+                    vtypes = ["Transaction", "Payment_Transaction", "Customer", "Card", "DeviceProfile", "EmailDomain", "BillingRegion", "ClosedCase", "Case", "Cases"]
+                for vt in vtypes:
                     try:
                         cnt = client.conn.getVertexCount(vt)
                         if cnt is not None:

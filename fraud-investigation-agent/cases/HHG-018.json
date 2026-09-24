@@ -80,5 +80,5 @@
   "stop_reason": "Customer confirmation settled the inquiry; further steps unnecessary.",
   "tool_calls": 10,
   "tokens": 720,
-  "latency_s": 21.7
+  "latency_s": 17.35
 }

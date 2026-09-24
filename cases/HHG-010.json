@@ -96,5 +96,5 @@
   "stop_reason": "Definitive evidence of compromise obtained; protective actions and report executed.",
   "tool_calls": 10,
   "tokens": 1770,
-  "latency_s": 23.02
+  "latency_s": 14.54
 }
