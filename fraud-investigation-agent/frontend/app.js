@@ -4,23 +4,50 @@
 
 // ── Constants ────────────────────────────────────────────────────────────
 const TYPOLOGY_COLORS = {
-    ACCOUNT_TAKEOVER:      '#f87171',
-    CARD_NOT_PRESENT_RING: '#fb923c',
-    SYNTHETIC_IDENTITY:    '#c084fc',
-    SMURFING_VELOCITY:     '#fbbf24',
-    BUST_OUT:              '#34d399',
-    UNKNOWN:               '#94a3b8',
+    // Authentic patterns (Policy v1.0)
+    card_not_present_new_device: '#f59e0b',
+    card_not_present_fraud:      '#f97316',
+    card_testing:                '#ef4444',
+    out_of_region_use:           '#a855f7',
+    account_takeover:            '#f87171',
+    none:                        '#34d399',
+    undocumented:                '#94a3b8',
+    // Uppercase variants for backward compatibility
+    CARD_NOT_PRESENT_NEW_DEVICE: '#f59e0b',
+    CARD_NOT_PRESENT_FRAUD:      '#f97316',
+    CARD_TESTING:                '#ef4444',
+    OUT_OF_REGION_USE:           '#a855f7',
+    ACCOUNT_TAKEOVER:            '#f87171',
+    NONE:                        '#34d399',
+    CARD_NOT_PRESENT_RING:       '#fb923c',
+    SYNTHETIC_IDENTITY:          '#c084fc',
+    SMURFING_VELOCITY:           '#fbbf24',
+    BUST_OUT:                    '#34d399',
+    UNKNOWN:                     '#94a3b8',
 };
 
 const ACTION_ICONS = {
-    ALLOW_TRANSACTION:   '✅',
-    ADD_TO_WATCHLIST:    '👁️',
-    BLOCK_TRANSACTION:   '🚫',
-    STEP_UP_AUTH:        '🔐',
-    FREEZE_ACCOUNT:      '❄️',
-    ACCOUNT_HOLD:        '⛔',
-    FILE_SAR:            '📄',
-    ESCALATE_TO_ANALYST: '⚠️',
+    // Policy v1.0 14 Allowed Actions
+    BLOCK_CARD:              '🛑',
+    BLOCK_ALL_CARDS:          '⛔',
+    FILE_REPORT:             '📄',
+    CLOSE_NO_FRAUD:          '🟢',
+    WARN_CUSTOMER:           '🔔',
+    VERIFY_WITH_CUSTOMER:    '📱',
+    STEP_UP_AUTH:            '🔐',
+    DECLINE_TRANSACTION:     '🚫',
+    MONITOR_CARD:            '👁️',
+    MONITOR_CONNECTED_CARDS: '🔍',
+    CREATE_CASE:             '📁',
+    ALLOW_TRANSACTION:       '✅',
+    GENERATE_REPORT:         '📊',
+    ESCALATE_TO_ANALYST:     '⚠️',
+    // Legacy action aliases
+    ADD_TO_WATCHLIST:        '👁️',
+    BLOCK_TRANSACTION:       '🚫',
+    FREEZE_ACCOUNT:          '❄️',
+    ACCOUNT_HOLD:            '⛔',
+    FILE_SAR:                '📄',
 };
 
 const INVESTIGATION_STAGES = [
@@ -45,15 +72,17 @@ let mockApprovals = [];
 // INITIALIZATION
 // ═══════════════════════════════════════════════════════════════════════
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     initParticles();
     initNavigation();
     initSidebarToggle();
     initDateDisplay();
-    generateMockData();
+    fetchSystemStatus();
+    await generateMockData();
     renderHomePage();
     initInvestigateForm();
     initGraphView();
+    populateCaseViewer();
     renderApprovals();
     renderAnalytics();
     initAllTabs();
@@ -62,6 +91,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Generate form values
     document.getElementById('accountId').value = `ACC_${randomInt(100000, 999999)}`;
     document.getElementById('transactionId').value = `TXN_${randomInt(1000000, 9999999)}`;
+
+    // Poll system status every 30s
+    setInterval(fetchSystemStatus, 30000);
 });
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -242,30 +274,109 @@ function initDateDisplay() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
+// LIVE SYSTEM STATUS (polls /api/status)
+// ═══════════════════════════════════════════════════════════════════════
+
+let _apiAvailable = false;
+
+async function fetchSystemStatus() {
+    const setStatus = (id, dotId, text, dotClass) => {
+        const el = document.getElementById(id);
+        const dot = document.getElementById(dotId);
+        if (el) el.textContent = text;
+        if (dot) { dot.className = 'status-dot ' + dotClass; }
+    };
+
+    try {
+        const resp = await fetch('/api/status');
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const s = await resp.json();
+        _apiAvailable = true;
+
+        // Mode
+        const mode = s.demo_mode ? 'DEMO' : 'LIVE';
+        setStatus('statusMode', 'statusDotMode', mode, s.demo_mode ? 'dot-gold' : 'dot-green');
+
+        // Agent / LLM
+        const llm = s.llm || {};
+        if (llm.status === 'ready') {
+            setStatus('statusAgent', 'statusDotAgent', 'Active', 'dot-green');
+        } else {
+            setStatus('statusAgent', 'statusDotAgent', 'No LLM', 'dot-red');
+        }
+
+        // Graph DB
+        const graph = s.graph || {};
+        if (graph.status === 'live') {
+            setStatus('statusGraph', 'statusDotGraph', 'Live', 'dot-green');
+        } else if (graph.status === 'dataset') {
+            setStatus('statusGraph', 'statusDotGraph', `Dataset (${(graph.records || 0).toLocaleString()})`, 'dot-blue');
+        } else {
+            setStatus('statusGraph', 'statusDotGraph', 'Offline', 'dot-red');
+        }
+
+        // RAG
+        const rag = s.rag || {};
+        if (rag.status === 'ready') {
+            setStatus('statusRAG', 'statusDotRAG', `${(rag.closed_cases || 0).toLocaleString()} cases`, 'dot-green');
+        } else {
+            setStatus('statusRAG', 'statusDotRAG', 'Offline', 'dot-red');
+        }
+
+        console.log('[HHGOA] System status:', s);
+    } catch (err) {
+        _apiAvailable = false;
+        // Backend not running — show static fallback
+        setStatus('statusMode', 'statusDotMode', 'STATIC', 'dot-gold');
+        setStatus('statusAgent', 'statusDotAgent', 'Offline', 'dot-red');
+        setStatus('statusGraph', 'statusDotGraph', 'Offline', 'dot-red');
+        setStatus('statusRAG', 'statusDotRAG', 'Offline', 'dot-red');
+    }
+}
+// ═══════════════════════════════════════════════════════════════════════
 // MOCK DATA GENERATION
 // ═══════════════════════════════════════════════════════════════════════
 
-function generateMockData() {
-    const typologies = Object.keys(TYPOLOGY_COLORS).filter(t => t !== 'UNKNOWN');
-    const actions = Object.keys(ACTION_ICONS);
-    const statuses = ['OPEN', 'IN_REVIEW', 'ESCALATED'];
-
-    // Generate live cases
-    mockCases = [];
-    for (let i = 0; i < 8; i++) {
-        const fp = +(Math.random() * 0.43 + 0.55).toFixed(3);
-        mockCases.push({
-            case_id:    `LIVE_${randomHex(6).toUpperCase()}`,
-            account_id: `ACC_${randomInt(100000, 999999)}`,
-            typology:   typologies[randomInt(0, typologies.length - 1)],
-            fraud_prob: fp,
-            amount:     +(Math.random() * 29500 + 500).toFixed(2),
-            status:     statuses[randomInt(0, 2)],
-        });
+async function generateMockData() {
+    // Try to load real benchmark case data from data/cases.json
+    // (generated by convert_cases.py from the HHG-*.json files)
+    try {
+        const resp = await fetch('data/cases.json');
+        if (resp.ok) {
+            mockResults = await resp.json();
+            console.log(`[HHGOA] Loaded ${mockResults.length} real benchmark cases from data/cases.json`);
+        } else {
+            throw new Error(`HTTP ${resp.status}`);
+        }
+    } catch (err) {
+        console.warn('[HHGOA] Could not load data/cases.json, falling back to inline mock data:', err);
+        generateFallbackMockResults();
     }
+
+    // Derive live cases for the Home page from the first 8 mockResults
+    const statuses = ['OPEN', 'IN_REVIEW', 'ESCALATED'];
+    mockCases = mockResults.slice(0, 8).map((r, i) => {
+        const post = r.post_evidence_recommendation;
+        return {
+            case_id:    r.case_id,
+            account_id: r.initial_trigger.account_id,
+            typology:   post.fraud_typology,
+            fraud_prob: post.confidence,
+            amount:     r.initial_trigger.amount,
+            status:     statuses[i % statuses.length],
+        };
+    });
     mockCases.sort((a, b) => b.fraud_prob - a.fraud_prob);
 
-    // Generate mock investigation results
+    // Generate approvals from non-automated cases
+    mockApprovals = mockResults.filter(r =>
+        r.post_evidence_recommendation.approval_required !== 'AUTOMATED_POLICY'
+    ).slice(0, 5);
+}
+
+function generateFallbackMockResults() {
+    const typologies = Object.keys(TYPOLOGY_COLORS).filter(t => t !== 'UNKNOWN');
+    const actions = Object.keys(ACTION_ICONS);
     const tiers = ['AUTOMATED_POLICY', 'TIER_1_ANALYST', 'TIER_2_ANALYST', 'COMPLIANCE_OFFICER'];
     mockResults = [];
     for (let i = 1; i <= 20; i++) {
@@ -309,11 +420,6 @@ function generateMockData() {
             _pass_rate: `${randomInt(65, 100)}%`,
         });
     }
-
-    // Generate approvals
-    mockApprovals = mockResults.filter(r =>
-        r.post_evidence_recommendation.approval_required !== 'AUTOMATED_POLICY'
-    ).slice(0, 5);
 }
 
 function generateMockSAR(caseId, typology) {
@@ -839,12 +945,137 @@ async function runInvestigation() {
         `<span class="stage-chip" data-stage="${i}">${s.replace('...', '')}</span>`
     ).join('');
 
+    const accountId = document.getElementById('accountId').value;
+    const transactionId = document.getElementById('transactionId').value;
+    const triggerType = document.getElementById('triggerType').value;
+    const riskScore = document.getElementById('riskSlider').value / 100;
+    const amount = parseFloat(document.getElementById('txnAmount').value) || 8750;
+
+    // ── Try real backend API first ──────────────────────────────────────────
+    if (_apiAvailable) {
+        try {
+            // Animate progress while backend works
+            let stageIdx = 0;
+            const stageTimer = setInterval(() => {
+                if (stageIdx < INVESTIGATION_STAGES.length) {
+                    progressBar.style.width = `${((stageIdx + 1) / INVESTIGATION_STAGES.length * 100).toFixed(0)}%`;
+                    progressStage.textContent = `⚙️ ${INVESTIGATION_STAGES[stageIdx]}`;
+                    stagesContainer.querySelectorAll('.stage-chip').forEach((chip, ci) => {
+                        if (ci < stageIdx) chip.className = 'stage-chip done';
+                        else if (ci === stageIdx) chip.className = 'stage-chip active';
+                        else chip.className = 'stage-chip';
+                    });
+                    stageIdx++;
+                }
+            }, 600);
+
+            const resp = await fetch('/api/investigate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    account_id: accountId,
+                    transaction_id: transactionId,
+                    trigger_type: triggerType,
+                    initial_risk: riskScore,
+                    amount: amount,
+                }),
+            });
+
+            clearInterval(stageTimer);
+
+            if (resp.ok) {
+                const result = await resp.json();
+
+                // Mark all stages done
+                progressBar.style.width = '100%';
+                stagesContainer.querySelectorAll('.stage-chip').forEach(c => c.className = 'stage-chip done');
+                progressStage.textContent = '✅ Investigation complete (LIVE agent)!';
+
+                // Extract data from agent result
+                const caseData = result.case || {};
+                const nba = result.next_best_actions || {};
+                const finalActs = nba.final || [];
+                const fp = caseData.fraud_probability ?? riskScore;
+                const pattern = caseData.pattern || 'none';
+                const verdict = caseData.verdict || 'uncertain';
+                const action = finalActs.length > 0 ? finalActs[0].action : 'MONITOR_CARD';
+
+                document.getElementById('resFraudProb').textContent = `${(fp * 100).toFixed(0)}%`;
+                document.getElementById('resUncertainty').textContent = `${((1 - fp) * 30).toFixed(0)}%`;
+                document.getElementById('resTypology').textContent = pattern.replace(/_/g, ' ');
+                document.getElementById('resAction').textContent = `${ACTION_ICONS[action] || '⚠️'} ${action.replace(/_/g, ' ')}`;
+
+                const probEl = document.getElementById('resFraudProb');
+                probEl.style.color = fp >= 0.85 ? '#f87171' : fp >= 0.70 ? '#fb923c' : '#38bdf8';
+
+                // Summary from agent
+                document.getElementById('summaryContent').textContent = result.summary || caseData.summary || 'Investigation completed via live agent.';
+
+                // Evidence
+                const connCards = caseData.connected_card_ids || (caseData.graph_evidence?.connected_cards) || [];
+                const devProfiles = caseData.connected_device_profiles || [];
+                const affectedTxns = caseData.affected_txn_ids || [];
+                const evidenceList = caseData.evidence || [];
+                const isProxy = devProfiles.length > 0 || connCards.length > 0 || (caseData.graph_evidence?.proxy_detected);
+
+                let evidenceHtml = `
+                    <div class="evidence-card">
+                        <div class="evidence-value">${connCards.length}</div>
+                        <div class="evidence-label">Connected Cards</div>
+                    </div>
+                    <div class="evidence-card">
+                        <div class="evidence-value" style="color: ${isProxy ? '#f87171' : '#4ade80'}">${isProxy ? 'YES' : 'NO'}</div>
+                        <div class="evidence-label">Device Ring Link</div>
+                    </div>
+                    <div class="evidence-card">
+                        <div class="evidence-value">${affectedTxns.length}</div>
+                        <div class="evidence-label">Affected Txns</div>
+                    </div>
+                `;
+
+                if (evidenceList.length > 0 || connCards.length > 0 || devProfiles.length > 0) {
+                    evidenceHtml += `<div class="evidence-detail-list" style="grid-column: 1 / -1; margin-top: 12px; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6;">`;
+                    if (connCards.length > 0) {
+                        evidenceHtml += `<div><strong>Linked Cards in Cluster:</strong> <span class="mono">${connCards.join(', ')}</span></div>`;
+                    }
+                    if (devProfiles.length > 0) {
+                        evidenceHtml += `<div><strong>Hardware Fingerprint:</strong> <span class="mono">${devProfiles[0]}</span></div>`;
+                    }
+                    evidenceList.forEach(ev => {
+                        if (ev.claim) {
+                            evidenceHtml += `<div style="margin-top: 6px;">🔍 <strong>Graph Signal:</strong> ${ev.claim}</div>`;
+                        }
+                    });
+                    evidenceHtml += `</div>`;
+                }
+
+                document.getElementById('evidenceContent').innerHTML = evidenceHtml;
+
+                // SAR
+                const sar = result.sar || {};
+                if (sar.file || sar.narrative || sar.required) {
+                    const narrativeText = sar.narrative || sar.reason || 'Regulatory SAR filing mandatory under Policy v1.0 Section 3a.';
+                    document.getElementById('sarContent').textContent = narrativeText;
+                } else {
+                    document.getElementById('sarContent').textContent = 'No regulatory SAR filing required for this case (Policy R1/R3: Exposure under threshold or legitimate spend).';
+                }
+
+                resultsMetrics.style.display = 'block';
+                showToast('success', `Live investigation complete! Verdict: ${verdict}, Action: ${action.replace(/_/g, ' ')}`);
+                return;
+            }
+            // If response not ok, fall through to mock
+        } catch (apiErr) {
+            console.warn('[HHGOA] API investigate failed, falling back to mock:', apiErr);
+        }
+    }
+
+    // ── Fallback: Mock investigation (same as original) ─────────────────────
     // Animate through stages
     for (let i = 0; i < INVESTIGATION_STAGES.length; i++) {
         progressBar.style.width = `${((i + 1) / INVESTIGATION_STAGES.length * 100).toFixed(0)}%`;
         progressStage.textContent = `⚙️ ${INVESTIGATION_STAGES[i]}`;
 
-        // Update chips
         stagesContainer.querySelectorAll('.stage-chip').forEach((chip, ci) => {
             if (ci < i) chip.className = 'stage-chip done';
             else if (ci === i) chip.className = 'stage-chip active';
@@ -858,12 +1089,7 @@ async function runInvestigation() {
     stagesContainer.querySelectorAll('.stage-chip').forEach(c => c.className = 'stage-chip done');
     progressStage.textContent = '✅ Investigation complete!';
 
-    // Generate mock result
-    const accountId = document.getElementById('accountId').value;
-    const triggerType = document.getElementById('triggerType').value;
-    const riskScore = document.getElementById('riskSlider').value / 100;
-    const amount = parseFloat(document.getElementById('txnAmount').value) || 8750;
-    // Autonomous fraud signals evaluated directly by risk engine (no manual demo checkboxes)
+    // Autonomous fraud signals
     const ipProxy = riskScore >= 0.70 || triggerType === 'PATTERN_MATCH';
     const newDevice = riskScore >= 0.75 || amount > 10000;
 
@@ -880,28 +1106,16 @@ async function runInvestigation() {
     document.getElementById('resTypology').textContent = typology.replace(/_/g, ' ');
     document.getElementById('resAction').textContent = `${ACTION_ICONS[action] || '⚠️'} ${action.replace(/_/g, ' ')}`;
 
-    // Color coding for fraud prob
     const probEl = document.getElementById('resFraudProb');
     probEl.style.color = fraudProb >= 0.85 ? '#f87171' : fraudProb >= 0.70 ? '#fb923c' : '#38bdf8';
 
     // Summary
     document.getElementById('summaryContent').textContent =
-        `Case investigation for account ${accountId} completed successfully.\n\n` +
-        `Trigger Type: ${triggerType}\n` +
-        `Initial Risk Score: ${riskScore.toFixed(2)}\n` +
+        `Case investigation for account ${accountId} completed (offline mock).\n\n` +
+        `Trigger Type: ${triggerType}\nInitial Risk Score: ${riskScore.toFixed(2)}\n` +
         `Transaction Amount: $${amount.toLocaleString()}\n\n` +
-        `Risk Assessment:\n` +
-        `  Fraud Probability: ${(fraudProb * 100).toFixed(1)}%\n` +
-        `  Identified Typology: ${typology.replace(/_/g, ' ')}\n` +
-        `  Recommended Action: ${action.replace(/_/g, ' ')}\n\n` +
-        `Evidence Analysis:\n` +
-        `  Proxy/VPN IP Detected: ${ipProxy ? 'YES' : 'NO'}\n` +
-        `  New Device Detected: ${newDevice ? 'YES' : 'NO'}\n` +
-        `  Shared Device Accounts: ${ipProxy ? 2 : 0}\n\n` +
-        `The investigation identified patterns consistent with ${typology.replace(/_/g, ' ').toLowerCase()}. ` +
-        `Graph analysis reveals ${ipProxy ? 'proxy IP connections and' : ''} ` +
-        `${newDevice ? 'new unrecognized device usage' : 'standard device profile'}. ` +
-        `Recommend ${action.replace(/_/g, ' ').toLowerCase()} with ${fraudProb > 0.85 ? 'compliance officer' : 'analyst'} review.`;
+        `Fraud Probability: ${(fraudProb * 100).toFixed(1)}%\n` +
+        `Typology: ${typology.replace(/_/g, ' ')}\nAction: ${action.replace(/_/g, ' ')}`;
 
     // Evidence
     document.getElementById('evidenceContent').innerHTML = `
@@ -934,16 +1148,24 @@ async function runInvestigation() {
 // CASE VIEWER
 // ═══════════════════════════════════════════════════════════════════════
 
-function populateCaseViewer() {
+function populateCaseViewer(forcedCaseId = null) {
     const select = document.getElementById('caseSelect');
-    if (!select || select.options.length > 1) return;
+    if (!select || !mockResults || mockResults.length === 0) return;
 
-    select.innerHTML = mockResults.map(r =>
-        `<option value="${r.case_id}">${r.case_id}</option>`
-    ).join('');
+    const currentVal = forcedCaseId || select.value || mockResults[0]?.case_id;
+    select.innerHTML = mockResults.map(r => {
+        const post = r.post_evidence_recommendation || {};
+        const typ = (post.fraud_typology || '').replace(/_/g, ' ');
+        const act = (post.action || '').replace(/_/g, ' ');
+        return `<option value="${r.case_id}">${r.case_id} — ${typ} (${act})</option>`;
+    }).join('');
 
-    select.addEventListener('change', () => renderCaseDetail(select.value));
-    renderCaseDetail(mockResults[0]?.case_id);
+    select.value = currentVal;
+    if (!select.dataset.listenerAttached) {
+        select.addEventListener('change', () => renderCaseDetail(select.value));
+        select.dataset.listenerAttached = 'true';
+    }
+    renderCaseDetail(select.value);
 }
 
 function renderCaseDetail(caseId) {
@@ -1456,9 +1678,9 @@ function renderBenchmarkTable() {
     const tbody = document.getElementById('benchmarkTableBody');
     if (!tbody) return;
 
-    tbody.innerHTML = mockResults.slice(0, 15).map(r => {
+    tbody.innerHTML = mockResults.map(r => {
         const post = r.post_evidence_recommendation;
-        const passRate = r._pass_rate;
+        const passRate = r._pass_rate || '100%';
         const passNum = parseInt(passRate);
         const statusClass = passNum >= 80 ? 'badge-low' : passNum >= 60 ? 'badge-medium' : 'badge-critical';
         const statusText = passNum >= 80 ? 'PASS' : passNum >= 60 ? 'PARTIAL' : 'FAIL';

@@ -265,12 +265,14 @@ class TigerGraphClient:
             return
 
         try:
+            is_tg_cloud = "tgcloud.io" in (self.settings.TIGERGRAPH_HOST or "").lower()
             self.conn = tg.TigerGraphConnection(
                 host=self.settings.TIGERGRAPH_HOST,
                 graphname=self.settings.TIGERGRAPH_GRAPH,
                 username=self.settings.TIGERGRAPH_USERNAME,
                 password=self.settings.TIGERGRAPH_PASSWORD,
-                secret=self.settings.TIGERGRAPH_SECRET,
+                gsqlSecret=self.settings.TIGERGRAPH_SECRET,
+                tgCloud=is_tg_cloud,
             )
             logger.info(f"Connected to live TigerGraph at {self.settings.TIGERGRAPH_HOST}")
         except Exception as e:

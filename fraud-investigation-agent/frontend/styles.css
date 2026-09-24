@@ -596,6 +596,7 @@ body {
 .dot-blue   { background: #38bdf8; box-shadow: 0 0 8px rgba(56, 189, 248, 0.8); }
 .dot-red    { background: #f87171; box-shadow: 0 0 8px rgba(248, 113, 113, 0.8); }
 .dot-yellow { background: #fbbf24; box-shadow: 0 0 8px rgba(251, 191, 36, 0.8); }
+.dot-gold   { background: #f59e0b; box-shadow: 0 0 8px rgba(245, 158, 11, 0.8); }
 .dot-purple { background: #c084fc; box-shadow: 0 0 8px rgba(192, 132, 252, 0.8); }
 .dot-cyan   { background: #2dd4bf; box-shadow: 0 0 8px rgba(45, 212, 191, 0.8); }
 
