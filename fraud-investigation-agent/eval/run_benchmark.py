@@ -316,7 +316,20 @@ def main():
     print("═" * 65 + "\n")
 
     for i, c in enumerate(all_cases, 1):
-        print(f"[{i:02d}/20] Processing {c['case_id']}...")
+        cid = c["case_id"]
+        out_file = CASES_DIR / f"{cid}.json"
+        if out_file.exists():
+            try:
+                with open(out_file, "r", encoding="utf-8") as f:
+                    existing = json.load(f)
+                if existing.get("case", {}).get("written_to_graph") and not existing.get("offline_dev"):
+                    print(f"[{i:02d}/20] Case {cid} already completed live on TigerGraph. (Skipping)")
+                    results.append(existing)
+                    continue
+            except Exception:
+                pass
+
+        print(f"[{i:02d}/20] Processing {cid}...")
         res = run_single_case(c)
         results.append(res)
 

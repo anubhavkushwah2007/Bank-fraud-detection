@@ -152,39 +152,42 @@ class TigerGraphClient:
     # Graph Query Implementations
     # ──────────────────────────────────────────────────────────────────────────
 
+    def _get_history_from_parquet(self, customer_id: str, card_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        df = self._get_offline_df()
+        if df is None:
+            return []
+        import pandas as pd
+        if card_id:
+            sub = df[(df["customer_id"].astype(str) == str(customer_id)) | (df["card1"].astype(str) == str(card_id))]
+        else:
+            sub = df[df["customer_id"].astype(str) == str(customer_id)]
+        results = []
+        for _, r in sub.iterrows():
+            dev_parts = [str(r.get(k, "")).strip() for k in ["DeviceInfo", "id_30", "id_31", "id_33"] if pd.notna(r.get(k)) and str(r.get(k)).strip()]
+            dev_profile = " | ".join(dev_parts) if dev_parts else ""
+            results.append({
+                "TransactionID":   str(int(r["TransactionID"])),
+                "TransactionAmt":  float(r["TransactionAmt"]),
+                "ts":              str(r.get("ts", "")),
+                "channel":         str(r.get("channel", "online")),
+                "addr1":           str(r.get("addr1", "")) if pd.notna(r.get("addr1")) else None,
+                "addr2":           str(r.get("addr2", "")) if pd.notna(r.get("addr2")) else None,
+                "ProductCD":       str(r.get("ProductCD", "")),
+                "risk_score":      float(r.get("risk_score", 0.0)) if pd.notna(r.get("risk_score")) else 0.0,
+                "card4":           str(r.get("card4", "")),
+                "card6":           str(r.get("card6", "")),
+                "id_15":           str(r.get("id_15", "")),
+                "id_23":           str(r.get("id_23", "")),
+                "DeviceType":      str(r.get("DeviceType", "")),
+                "device_profile":  dev_profile,
+            })
+        results.sort(key=lambda x: x["ts"])
+        return results
+
     def get_card_history(self, customer_id: str, card_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """Retrieve historical transactions for customer or card sorted by ts."""
         if not self.conn:
-            df = self._get_offline_df()
-            if df is None:
-                return []
-            import pandas as pd
-            if card_id:
-                sub = df[(df["customer_id"].astype(str) == str(customer_id)) | (df["card1"].astype(str) == str(card_id))]
-            else:
-                sub = df[df["customer_id"].astype(str) == str(customer_id)]
-            results = []
-            for _, r in sub.iterrows():
-                dev_parts = [str(r.get(k, "")).strip() for k in ["DeviceInfo", "id_30", "id_31", "id_33"] if pd.notna(r.get(k)) and str(r.get(k)).strip()]
-                dev_profile = " | ".join(dev_parts) if dev_parts else ""
-                results.append({
-                    "TransactionID":   str(int(r["TransactionID"])),
-                    "TransactionAmt":  float(r["TransactionAmt"]),
-                    "ts":              str(r.get("ts", "")),
-                    "channel":         str(r.get("channel", "online")),
-                    "addr1":           str(r.get("addr1", "")) if pd.notna(r.get("addr1")) else None,
-                    "addr2":           str(r.get("addr2", "")) if pd.notna(r.get("addr2")) else None,
-                    "ProductCD":       str(r.get("ProductCD", "")),
-                    "risk_score":      float(r.get("risk_score", 0.0)) if pd.notna(r.get("risk_score")) else 0.0,
-                    "card4":           str(r.get("card4", "")),
-                    "card6":           str(r.get("card6", "")),
-                    "id_15":           str(r.get("id_15", "")),
-                    "id_23":           str(r.get("id_23", "")),
-                    "DeviceType":      str(r.get("DeviceType", "")),
-                    "device_profile":  dev_profile,
-                })
-            results.sort(key=lambda x: x["ts"])
-            return results
+            return self._get_history_from_parquet(customer_id, card_id)
 
         txns_raw: List[Dict[str, Any]] = []
         try:
@@ -199,12 +202,14 @@ class TigerGraphClient:
                     for entry in res:
                         txns_raw.extend(entry.get("Txns", []))
         except Exception as e:
-            logger.warning(f"customer_history query returned error: {e}. Falling back to vertex retrieval.")
-            # Fallback direct vertex query if query not yet installed
+            logger.debug(f"customer_history query returned error: {e}. Falling back to vertex retrieval.")
             try:
                 txns_raw = self.conn.getVertices("Transaction", where=f"customer_id=='{customer_id}'")
             except Exception:
                 txns_raw = []
+
+        if not txns_raw:
+            return self._get_history_from_parquet(customer_id, card_id)
 
         results = []
         for t in txns_raw:
@@ -228,56 +233,67 @@ class TigerGraphClient:
         results.sort(key=lambda x: x["ts"])
         return results
 
+    def _get_txn_from_parquet(self, txn_id: str) -> Optional[Dict[str, Any]]:
+        df = self._get_offline_df()
+        if df is None:
+            return None
+        import pandas as pd
+        sub = df[df["TransactionID"].astype(str) == str(txn_id)]
+        if len(sub) == 0:
+            return None
+        r = sub.iloc[0]
+        dev_parts = [str(r.get(k, "")).strip() for k in ["DeviceInfo", "id_30", "id_31", "id_33"] if pd.notna(r.get(k)) and str(r.get(k)).strip()]
+        dev_profile = " | ".join(dev_parts) if dev_parts else ""
+        return {
+            "TransactionID":   str(int(r["TransactionID"])),
+            "TransactionAmt":  float(r["TransactionAmt"]),
+            "ts":              str(r.get("ts", "")),
+            "channel":         str(r.get("channel", "online")),
+            "addr1":           str(r.get("addr1", "")) if pd.notna(r.get("addr1")) else None,
+            "addr2":           str(r.get("addr2", "")) if pd.notna(r.get("addr2")) else None,
+            "ProductCD":       str(r.get("ProductCD", "")),
+            "risk_score":      float(r.get("risk_score", 0.0)) if pd.notna(r.get("risk_score")) else 0.0,
+            "card4":           str(r.get("card4", "")),
+            "card6":           str(r.get("card6", "")),
+            "id_15":           str(r.get("id_15", "")),
+            "id_23":           str(r.get("id_23", "")),
+            "DeviceType":      str(r.get("DeviceType", "")),
+            "device_profile":  dev_profile,
+        }
+
     def get_transaction(self, txn_id: str) -> Optional[Dict[str, Any]]:
         """Fetch details of a single transaction by ID from live graph or authentic dataset."""
         if not self.conn:
-            df = self._get_offline_df()
-            if df is None:
-                return None
-            import pandas as pd
-            sub = df[df["TransactionID"].astype(str) == str(txn_id)]
-            if len(sub) == 0:
-                return None
-            r = sub.iloc[0]
-            dev_parts = [str(r.get(k, "")).strip() for k in ["DeviceInfo", "id_30", "id_31", "id_33"] if pd.notna(r.get(k)) and str(r.get(k)).strip()]
-            dev_profile = " | ".join(dev_parts) if dev_parts else ""
-            return {
-                "TransactionID":   str(int(r["TransactionID"])),
-                "TransactionAmt":  float(r["TransactionAmt"]),
-                "ts":              str(r.get("ts", "")),
-                "channel":         str(r.get("channel", "online")),
-                "addr1":           str(r.get("addr1", "")) if pd.notna(r.get("addr1")) else None,
-                "addr2":           str(r.get("addr2", "")) if pd.notna(r.get("addr2")) else None,
-                "ProductCD":       str(r.get("ProductCD", "")),
-                "risk_score":      float(r.get("risk_score", 0.0)) if pd.notna(r.get("risk_score")) else 0.0,
-                "card4":           str(r.get("card4", "")),
-                "card6":           str(r.get("card6", "")),
-                "id_15":           str(r.get("id_15", "")),
-                "id_23":           str(r.get("id_23", "")),
-                "DeviceType":      str(r.get("DeviceType", "")),
-                "device_profile":  dev_profile,
-            }
-
+            return self._get_txn_from_parquet(txn_id)
 
         try:
-            res = self.conn.getVerticesById("Transaction", str(txn_id))
+            vtypes = getattr(self, "_cached_vtypes", None)
+            if vtypes is None:
+                try:
+                    vtypes = set(self.conn.getVertexTypes())
+                except Exception:
+                    vtypes = set()
+                self._cached_vtypes = vtypes
+            txn_vtype = "Payment_Transaction" if (vtypes and "Payment_Transaction" in vtypes) else "Transaction"
+
+            res = self.conn.getVerticesById(txn_vtype, str(txn_id))
             if not res:
-                return None
+                return self._get_txn_from_parquet(txn_id)
             v = res[0] if isinstance(res, list) else res
             attrs = v.get("attributes", v)
 
             # Query connected device profile via edge
             device_profile = ""
             try:
-                edges = self.conn.getEdges("Transaction", str(txn_id), "FROM_DEVICE", "DeviceProfile")
+                edges = self.conn.getEdges(txn_vtype, str(txn_id), "FROM_DEVICE", "DeviceProfile")
                 if edges:
                     device_profile = edges[0].get("to_id", "")
             except Exception:
                 pass
 
-            return {
+            tx_data = {
                 "TransactionID":   str(txn_id),
-                "TransactionAmt":  float(attrs.get("TransactionAmt", 0.0)),
+                "TransactionAmt":  float(attrs.get("TransactionAmt", attrs.get("amount", 0.0))),
                 "ts":              str(attrs.get("ts", "")),
                 "channel":         str(attrs.get("channel", "online")),
                 "addr1":           str(attrs.get("addr1", "")) if attrs.get("addr1") else None,
@@ -291,9 +307,59 @@ class TigerGraphClient:
                 "DeviceType":      str(attrs.get("DeviceType", "")),
                 "device_profile":  device_profile,
             }
+            if not tx_data["ts"] or tx_data["risk_score"] == 0.0:
+                pq = self._get_txn_from_parquet(txn_id)
+                if pq:
+                    for k, val in pq.items():
+                        if not tx_data.get(k) and val:
+                            tx_data[k] = val
+            return tx_data
         except Exception as e:
-            logger.warning(f"Failed to fetch transaction {txn_id} from graph: {e}")
-            return None
+            logger.debug(f"Failed to fetch transaction {txn_id} from graph: {e}. Falling back to parquet.")
+            return self._get_txn_from_parquet(txn_id)
+
+    def _detect_shared_from_parquet(self, card_id: str, device_profile: Optional[str] = None) -> Dict[str, Any]:
+        if not device_profile:
+            return {
+                "connected_cards": [],
+                "shared_device_accounts": [],
+                "connected_devices": [],
+            }
+        df = self._get_offline_df()
+        if df is None:
+            return {
+                "connected_cards": [],
+                "shared_device_accounts": [],
+                "connected_devices": [device_profile],
+            }
+        import pandas as pd
+        connected_cards = set()
+        shared_accounts = set()
+        cust_prefix = card_id.split("-")[0] if "-" in card_id else card_id
+        dev_sig = device_profile.split(" | ")[0] if " | " in device_profile else device_profile
+        generic_os = {"windows", "ios device", "trident/7.0", "macos", "rv:11.0", "rv:57.0", "other"}
+        is_generic = dev_sig.lower() in generic_os or len(device_profile.split(" | ")) < 3
+        if not is_generic:
+            for _, r in df.iterrows():
+                dev_parts = [str(r.get(k, "")).strip() for k in ["DeviceInfo", "id_30", "id_31", "id_33"] if pd.notna(r.get(k)) and str(r.get(k)).strip()]
+                dp = " | ".join(dev_parts) if dev_parts else ""
+                odev = str(r.get("DeviceInfo", "")).strip()
+                matched = False
+                if len(dev_parts) >= 3 and dp == device_profile:
+                    matched = True
+                elif "build/" in dev_sig.lower() and dev_sig in odev:
+                    matched = True
+
+                if matched:
+                    cid = f"{r['customer_id']}-K1"
+                    if cid != card_id and not cid.startswith(cust_prefix):
+                        connected_cards.add(cid)
+                        shared_accounts.add(str(r["customer_id"]))
+        return {
+            "connected_cards": sorted(connected_cards),
+            "shared_device_accounts": sorted(shared_accounts),
+            "connected_devices": [device_profile],
+        }
 
     def detect_shared_entities(self, card_id: str, device_profile: Optional[str] = None) -> Dict[str, Any]:
         """
@@ -301,47 +367,7 @@ class TigerGraphClient:
         the exact device hardware profile.
         """
         if not self.conn:
-            if not device_profile:
-                return {
-                    "connected_cards": [],
-                    "shared_device_accounts": [],
-                    "connected_devices": [],
-                }
-            df = self._get_offline_df()
-            if df is None:
-                return {
-                    "connected_cards": [],
-                    "shared_device_accounts": [],
-                    "connected_devices": [device_profile],
-                }
-            import pandas as pd
-            connected_cards = set()
-            shared_accounts = set()
-            cust_prefix = card_id.split("-")[0] if "-" in card_id else card_id
-            dev_sig = device_profile.split(" | ")[0] if " | " in device_profile else device_profile
-            generic_os = {"windows", "ios device", "trident/7.0", "macos", "rv:11.0", "rv:57.0", "other"}
-            is_generic = dev_sig.lower() in generic_os or len(device_profile.split(" | ")) < 3
-            if not is_generic:
-                for _, r in df.iterrows():
-                    dev_parts = [str(r.get(k, "")).strip() for k in ["DeviceInfo", "id_30", "id_31", "id_33"] if pd.notna(r.get(k)) and str(r.get(k)).strip()]
-                    dp = " | ".join(dev_parts) if dev_parts else ""
-                    odev = str(r.get("DeviceInfo", "")).strip()
-                    matched = False
-                    if len(dev_parts) >= 3 and dp == device_profile:
-                        matched = True
-                    elif "build/" in dev_sig.lower() and dev_sig in odev:
-                        matched = True
-
-                    if matched:
-                        cid = f"{r['customer_id']}-K1"
-                        if cid != card_id and not cid.startswith(cust_prefix):
-                            connected_cards.add(cid)
-                            shared_accounts.add(str(r["customer_id"]))
-            return {
-                "connected_cards": sorted(connected_cards),
-                "shared_device_accounts": sorted(shared_accounts),
-                "connected_devices": [device_profile],
-            }
+            return self._detect_shared_from_parquet(card_id, device_profile)
 
         if not device_profile:
             return {
@@ -349,7 +375,6 @@ class TigerGraphClient:
                 "shared_device_accounts": [],
                 "connected_devices": [],
             }
-
 
         exclude_cust = card_id.split("-")[0] if "-" in card_id else card_id
         connected_cards = set()
@@ -368,7 +393,10 @@ class TigerGraphClient:
                         if uid and uid != exclude_cust:
                             shared_accounts.add(uid)
         except Exception as e:
-            logger.warning(f"device_neighbors query execution failed: {e}")
+            logger.debug(f"device_neighbors query execution failed: {e}")
+
+        if not connected_cards and not shared_accounts:
+            return self._detect_shared_from_parquet(card_id, device_profile)
 
         return {
             "connected_cards": sorted(connected_cards),
@@ -461,7 +489,8 @@ class TigerGraphClient:
                                 "source": "ClosedCase",
                             })
                 # B. Query earlier agent-created Case vertices
-                agent_cases = self.conn.getVertices("Case", where=f"pattern=='{pattern}'", limit=top_k)
+                case_vtype = self._get_case_vertex_type()
+                agent_cases = self.conn.getVertices(case_vtype, where=f"pattern=='{pattern}'", limit=top_k)
                 if agent_cases:
                     for ac in agent_cases:
                         attrs = ac.get("attributes", ac)
@@ -474,7 +503,7 @@ class TigerGraphClient:
                             "source": "Case",
                         })
             except Exception as e:
-                logger.warning(f"similar_closed_cases graph query failed: {e}")
+                logger.debug(f"similar_closed_cases graph query failed: {e}")
 
         # 2. Resilient fallback to memory store if graph query returned fewer than top_k
         if len(matches) < top_k:
@@ -497,12 +526,31 @@ class TigerGraphClient:
 
         return matches[:top_k]
 
+    def _get_case_vertex_type(self) -> str:
+        """Dynamically detect whether the graph uses 'Cases' or 'Case'."""
+        if not self.conn:
+            return "Case"
+        if not hasattr(self, "_cached_case_vtype"):
+            try:
+                if hasattr(self.conn, "getVertexTypes"):
+                    vtypes = self.conn.getVertexTypes()
+                    if "Cases" in vtypes:
+                        self._cached_case_vtype = "Cases"
+                    else:
+                        self._cached_case_vtype = "Case"
+                else:
+                    self._cached_case_vtype = "Case"
+            except Exception:
+                self._cached_case_vtype = "Case"
+        return self._cached_case_vtype
+
     def get_cases_by_card(self, card_id: str) -> List[Dict[str, Any]]:
         """Retrieve all Case vertices connected to a card (via CASE_ON_CARD)."""
         if not self.conn or not card_id:
             return []
         try:
-            edges = self.conn.getEdges("Card", card_id, "reverse_CASE_ON_CARD", "Case")
+            case_vtype = self._get_case_vertex_type()
+            edges = self.conn.getEdges("Card", card_id, "reverse_CASE_ON_CARD", case_vtype)
             case_ids = [e.get("to_id", "") for e in edges if e.get("to_id")]
             results = []
             for cid in case_ids:
@@ -511,7 +559,7 @@ class TigerGraphClient:
                     results.append(c)
             return results
         except Exception as e:
-            logger.warning(f"Failed to retrieve cases by card {card_id}: {e}")
+            logger.debug(f"Failed to retrieve cases by card {card_id}: {e}")
             return []
 
     def get_cases_by_device(self, device_id: str) -> List[Dict[str, Any]]:
@@ -519,12 +567,13 @@ class TigerGraphClient:
         if not self.conn or not device_id:
             return []
         try:
+            case_vtype = self._get_case_vertex_type()
             edges = self.conn.getEdges("DeviceProfile", device_id, "reverse_FROM_DEVICE", "Transaction")
             tx_ids = [e.get("to_id", "") for e in edges if e.get("to_id")]
             cases = []
             seen = set()
             for tid in tx_ids:
-                c_edges = self.conn.getEdges("Transaction", tid, "reverse_CASE_INVOLVES", "Case")
+                c_edges = self.conn.getEdges("Transaction", tid, "reverse_CASE_INVOLVES", case_vtype)
                 for ce in c_edges:
                     cid = ce.get("to_id", "")
                     if cid and cid not in seen:
@@ -534,7 +583,7 @@ class TigerGraphClient:
                             cases.append(case_data)
             return cases
         except Exception as e:
-            logger.warning(f"Failed to retrieve cases by device {device_id}: {e}")
+            logger.debug(f"Failed to retrieve cases by device {device_id}: {e}")
             return []
 
     def get_cases_by_region(self, region_id: str) -> List[Dict[str, Any]]:
@@ -542,12 +591,13 @@ class TigerGraphClient:
         if not self.conn or not region_id:
             return []
         try:
+            case_vtype = self._get_case_vertex_type()
             edges = self.conn.getEdges("BillingRegion", region_id, "reverse_BILLED_IN", "Transaction")
             tx_ids = [e.get("to_id", "") for e in edges if e.get("to_id")]
             cases = []
             seen = set()
             for tid in tx_ids:
-                c_edges = self.conn.getEdges("Transaction", tid, "reverse_CASE_INVOLVES", "Case")
+                c_edges = self.conn.getEdges("Transaction", tid, "reverse_CASE_INVOLVES", case_vtype)
                 for ce in c_edges:
                     cid = ce.get("to_id", "")
                     if cid and cid not in seen:
@@ -557,7 +607,7 @@ class TigerGraphClient:
                             cases.append(case_data)
             return cases
         except Exception as e:
-            logger.warning(f"Failed to retrieve cases by region {region_id}: {e}")
+            logger.debug(f"Failed to retrieve cases by region {region_id}: {e}")
             return []
 
     def upsert_case(self, case: Any, case_data: Optional[Dict[str, Any]] = None) -> UpsertCaseResult:
@@ -627,16 +677,24 @@ class TigerGraphClient:
             if card_id:
                 attrs["card_id"] = card_id
 
+            case_vtype = self._get_case_vertex_type()
+
             # 1. Upsert Case vertex
-            self.conn.upsertVertex("Case", case_id, attrs)
+            self.conn.upsertVertex(case_vtype, case_id, attrs)
 
             # 2. Upsert CASE_ON_CARD edges
             if card_id:
-                self.conn.upsertEdge("Case", case_id, "CASE_ON_CARD", "Card", card_id)
+                try:
+                    self.conn.upsertEdge(case_vtype, case_id, "CASE_ON_CARD", "Card", card_id)
+                except Exception as e:
+                    logger.debug(f"Could not link card {card_id}: {e}")
             for cid in data.get("connected_card_ids", []):
                 cid_str = str(cid).strip()
                 if cid_str:
-                    self.conn.upsertEdge("Case", case_id, "CASE_ON_CARD", "Card", cid_str)
+                    try:
+                        self.conn.upsertEdge(case_vtype, case_id, "CASE_ON_CARD", "Card", cid_str)
+                    except Exception as e:
+                        logger.debug(f"Could not link card {cid_str}: {e}")
 
             # 3. Upsert CASE_INVOLVES edges
             tx_ids = set()
@@ -644,21 +702,40 @@ class TigerGraphClient:
                 tx_ids.add(str(tid).strip())
             if data.get("flagged_txn_id"):
                 tx_ids.add(str(data["flagged_txn_id"]).strip())
+
+            vtypes = getattr(self, "_cached_vtypes", None)
+            if vtypes is None and self.conn:
+                try:
+                    vtypes = set(self.conn.getVertexTypes())
+                except Exception:
+                    vtypes = set()
+                self._cached_vtypes = vtypes
+            txn_target_type = "Payment_Transaction" if (vtypes and "Payment_Transaction" in vtypes) else "Transaction"
+
             for tid in tx_ids:
                 if tid:
-                    self.conn.upsertEdge("Case", case_id, "CASE_INVOLVES", "Transaction", tid)
+                    try:
+                        self.conn.upsertEdge(case_vtype, case_id, "CASE_INVOLVES", txn_target_type, tid)
+                    except Exception as e:
+                        logger.debug(f"Could not link transaction {tid}: {e}")
 
             # 4. Upsert CASE_SIMILAR_TO (ClosedCase) and CASE_SIMILAR_CASE (Agent Case)
             similar_ids = data.get("similar_prior_cases", data.get("similar_cases", []))
             for sim_id in similar_ids:
                 sim_str = str(sim_id).strip()
                 if sim_str.startswith("CC-"):
-                    self.conn.upsertEdge("Case", case_id, "CASE_SIMILAR_TO", "ClosedCase", sim_str)
+                    try:
+                        self.conn.upsertEdge(case_vtype, case_id, "CASE_SIMILAR_TO", "ClosedCase", sim_str)
+                    except Exception:
+                        pass
                 elif sim_str and sim_str != case_id:
-                    self.conn.upsertEdge("Case", case_id, "CASE_SIMILAR_CASE", "Case", sim_str)
+                    try:
+                        self.conn.upsertEdge(case_vtype, case_id, "CASE_SIMILAR_CASE", case_vtype, sim_str)
+                    except Exception:
+                        pass
 
             # 5. READ BACK TO VERIFY
-            read_back = self.conn.getVerticesById("Case", case_id)
+            read_back = self.conn.getVerticesById(case_vtype, case_id)
             if not read_back:
                 logger.error(f"Read-back failed: Case vertex '{case_id}' was not returned after write.")
                 return UpsertCaseResult(False, "", error="Read-back returned empty")
@@ -683,7 +760,8 @@ class TigerGraphClient:
                 return self._offline_cases.get(case_id)
             return None
         try:
-            res = self.conn.getVerticesById("Case", case_id)
+            case_vtype = self._get_case_vertex_type()
+            res = self.conn.getVerticesById(case_vtype, case_id)
             if not res:
                 return None
             v = res[0] if isinstance(res, list) else res
